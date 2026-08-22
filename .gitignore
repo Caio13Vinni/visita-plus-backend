@@ -1,0 +1,150 @@
+# =============================================================================
+# RUST
+# =============================================================================
+
+# Diretório de build (binários intermediários)
+/target/
+
+# Backups do compilador
+**/*.rs.bk
+
+# Arquivos de análise do rust-analyzer
+*.rlib
+*.rmeta
+
+# =============================================================================
+# CARGO
+# =============================================================================
+
+# Para projetos BINÁRIOS (aplicações): MANTENHA o Cargo.lock no Git.
+# Para bibliotecas (libs): REMOVA o Cargo.lock do Git.
+# Como Visita+ é uma aplicação, NÃO ignore Cargo.lock.
+# Descomente a linha abaixo SOMENTE se for criar uma crate de biblioteca:
+# /Cargo.lock
+
+# =============================================================================
+# AMBIENTE E CONFIGURAÇÃO
+# =============================================================================
+
+# Variáveis de ambiente (senhas, URLs, secrets)
+.env
+.env.local
+.env.*.local
+
+# Arquivos de configuração local
+*.local.toml
+
+# =============================================================================
+# DOCKER
+# =============================================================================
+
+# Volumes persistentes do Docker Compose
+/postgres-data/
+/pgadmin-data/
+/redis-data/
+
+# =============================================================================
+# SQLX (Compile-time verification)
+# =============================================================================
+
+# Arquivos de query preparada para CI offline
+# Descomente se quiser versionar o .sqlx/ para CI sem banco:
+# /.sqlx/
+
+# =============================================================================
+# IDEs E EDITORES
+# =============================================================================
+
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.history/
+
+# IntelliJ / CLion / RustRover
+.idea/
+*.iml
+*.iws
+out/
+
+# Vim / Neovim
+*.swp
+*.swo
+*~
+.nvimlog
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# =============================================================================
+# SISTEMA OPERACIONAL
+# =============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+
+# Linux
+*~
+.nfs*
+
+# =============================================================================
+# LOGS E TEMPORÁRIOS
+# =============================================================================
+
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.temp
+*.cache
+
+# =============================================================================
+# TESTES E COBERTURA
+# =============================================================================
+
+# Relatórios de cobertura (tarpaulin, llvm-cov, grcov)
+/coverage/
+*.profraw
+*.profdata
+cobertura.xml
+lcov.info
+
+# =============================================================================
+# DOCUMENTAÇÃO GERADA
+# =============================================================================
+
+/doc/target/
+/book/
+
+# =============================================================================
+# OUTROS
+# =============================================================================
+
+# node_modules do frontend (se houver)
+node_modules/
