@@ -148,3 +148,4 @@ lcov.info
 
 # node_modules do frontend (se houver)
 node_modules/
+.verboo
