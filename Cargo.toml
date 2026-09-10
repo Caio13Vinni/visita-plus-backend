@@ -1,6 +1,69 @@
 [package]
-name = "vistaPLUS"
+name = "visita_plus"
 version = "0.1.0"
 edition = "2024"
+description = "VISITA+ - Sistema de gestao de visitas domiciliares (CRAS/CREAS)"
+authors = ["Caio"]
+
+[[bin]]
+name = "visita_plus"
+path = "src/main.rs"
+
+[lib]
+name = "visita_plus"
+path = "src/lib.rs"
 
 [dependencies]
+# Runtime async
+tokio = { version = "1", features = ["full"] }
+
+# Framework web (interface HTTP)
+axum = "0.8"
+
+# Banco de dados (PostgreSQL central + SQLite local + migracoes)
+sqlx = { version = "0.8", features = [
+    "runtime-tokio",
+    "tls-none",
+    "postgres",
+    "sqlite",
+    "uuid",
+    "chrono",
+    "migrate",
+    "macros",
+] }
+
+# Serializacao
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# Datas e horarios
+chrono = { version = "0.4", features = ["serde"] }
+
+# Seguranca
+argon2 = "0.5"
+jsonwebtoken = "9"
+rand = "0.8"
+
+# Configuracao e logs
+dotenvy = "0.15"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Middlewares HTTP
+tower-http = { version = "0.6", features = ["trace", "cors"] }
+
+# Tratamento de erros
+thiserror = "2"
+anyhow = "1"
+
+# Utilidades
+async-trait = "0.1"
+futures = "0.3"
+
+[dev-dependencies]
+http-body-util = "0.1"
+
+[profile.release]
+lto = "thin"
+strip = true
