@@ -28,9 +28,14 @@ mod testes {
 
     /// Teste unitario simples de construcao de pool (nao exige banco).
     #[test]
-    fn a_configuracao_do_pool_nao_panica_com_url_vazia() {
-        // Apenas verifica que a estrutura de opcoes pode ser montada sem armadilhas.
-        let _ = PgPoolOptions::new().max_connections(2);
-        assert!(true);
+    fn a_configuracao_do_pool_aplica_limites_padrao() {
+        let opcoes = PgPoolOptions::new()
+            .max_connections(5)
+            .min_connections(1)
+            .acquire_timeout(std::time::Duration::from_secs(30));
+
+        // Verifica que os limites configurados sao repassados ao pool
+        assert_eq!(opcoes.get_max_connections(), 5);
+        assert_eq!(opcoes.get_min_connections(), 1);
     }
 }

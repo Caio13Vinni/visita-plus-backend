@@ -9,6 +9,7 @@ use std::sync::Arc;
 use super::estado::EstadoAplicacao;
 use crate::interface::api::manipuladores::verificar_saude;
 
+pub mod autenticacao;
 pub mod manipuladores;
 pub mod modelos;
 pub mod rotas;
@@ -17,6 +18,6 @@ pub mod rotas;
 pub fn construir_roteador(estado: Arc<EstadoAplicacao>) -> Router {
     Router::new()
         .route("/saude", get(verificar_saude))
-        .merge(rotas::construir_rotas())
+        .nest("/api/v1", rotas::construir_rotas())
         .with_state(estado)
 }
