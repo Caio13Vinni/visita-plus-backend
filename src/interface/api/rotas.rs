@@ -3,11 +3,10 @@
 use axum::Router;
 use std::sync::Arc;
 
+use crate::interface::api::autenticacao;
 use crate::interface::estado::EstadoAplicacao;
 
 /// Constroi o conjunto de rotas das funcionalidades da aplicacao.
 pub fn construir_rotas() -> Router<Arc<EstadoAplicacao>> {
-    // As rotas de cada caso de uso (UC01 a UC12) serao registradas
-    // progressivamente nas fases seguintes.
-    Router::new()
+    Router::new().nest("/auth", autenticacao::construir_rotas())
 }
