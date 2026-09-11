@@ -1,0 +1,12 @@
+target/
+.git/
+.gitignore
+.vscode/
+*.md
+!README.md
+.env
+.env.*
+!.env.example
+data/
+postgres-data/
+tests-tmp/

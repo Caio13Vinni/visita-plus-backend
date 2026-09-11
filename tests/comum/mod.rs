@@ -1,0 +1,122 @@
+// =============================================================================
+// Helpers compartilhados pelos testes de integracao
+// (subdiretorio: nao compilado como suite de testes propria)
+// =============================================================================
+
+use sqlx::PgPool;
+use uuid::Uuid;
+
+use visita_plus::dominio::enums::{PerfilUsuario, StatusUsuario};
+use visita_plus::infraestrutura::seguranca::senha;
+
+/// URL do banco central a partir do ambiente.
+pub fn url_do_banco() -> String {
+    dotenvy::dotenv().ok();
+    std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+        "postgres://visita:visita_forte_2026@localhost:5432/visita_plus".into()
+    })
+}
+
+/// Abre o pool e aplica as migracoes do MER.
+pub async fn preparar_banco() -> PgPool {
+    let pool = PgPool::connect(&url_do_banco())
+        .await
+        .expect("falha ao conectar no PostgreSQL (docker compose up -d postgres)");
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("falha ao aplicar as migracoes");
+    pool
+}
+
+/// Sufixo unico para isolar dados entre execucoes.
+pub fn sufixo_unico() -> String {
+    Uuid::new_v4().simple().to_string()[..12].to_string()
+}
+
+/// Dados retornados apos criar um usuario de teste.
+#[derive(Debug, Clone)]
+pub struct UsuarioDeTeste {
+    pub id: Uuid,
+    pub id_unidade: Uuid,
+    pub email: String,
+    pub senha: String,
+}
+
+/// Cria uma unidade CRAS de teste.
+pub async fn criar_unidade(pool: &PgPool) -> Uuid {
+    let token = sufixo_unico();
+    sqlx::query_scalar::<_, Uuid>(
+        "INSERT INTO unidade (nome, tipo, cidade)
+         VALUES ($1, 'CRAS', 'Cidade Teste')
+         RETURNING id_unidade",
+    )
+    .bind(format!("Unidade Teste {token}"))
+    .fetch_one(pool)
+    .await
+    .expect("falha ao criar unidade")
+}
+
+/// Cria um usuario de teste com hash Argon2id real.
+pub async fn criar_usuario(
+    pool: &PgPool,
+    perfil: PerfilUsuario,
+    status: StatusUsuario,
+    exige_troca_senha: bool,
+) -> UsuarioDeTeste {
+    let token = sufixo_unico();
+    let email = format!("usuario_{token}@teste.com");
+    criar_usuario_com(pool, &email, "SenhaForte#123", perfil, status, exige_troca_senha).await
+}
+
+/// Cria um usuario de teste com e-mail e senha controlados.
+pub async fn criar_usuario_com(
+    pool: &PgPool,
+    email: &str,
+    senha: &str,
+    perfil: PerfilUsuario,
+    status: StatusUsuario,
+    exige_troca_senha: bool,
+) -> UsuarioDeTeste {
+    let id_unidade = criar_unidade(pool).await;
+    let senha_hash = senha::gerar_hash_senha(senha).expect("falha ao gerar hash de teste");
+
+    let id = sqlx::query_scalar::<_, Uuid>(
+        "INSERT INTO usuario
+            (id_unidade, nome, email, senha_hash, perfil, status, exige_troca_senha)
+         VALUES ($1, 'Usuario Teste', $2, $3, $4, $5, $6)
+         RETURNING id_usuario",
+    )
+    .bind(id_unidade)
+    .bind(email)
+    .bind(senha_hash)
+    .bind(perfil)
+    .bind(status)
+    .bind(exige_troca_senha)
+    .fetch_one(pool)
+    .await
+    .expect("falha ao criar usuario");
+
+    UsuarioDeTeste {
+        id,
+        id_unidade,
+        email: email.to_string(),
+        senha: senha.to_string(),
+    }
+}
+
+/// Retorna a quantidade de eventos de auditoria de uma acao para um usuario.
+pub async fn contar_auditoria(
+    pool: &PgPool,
+    id_usuario: Uuid,
+    acao: &str,
+) -> i64 {
+    sqlx::query_scalar(
+        "SELECT count(*) FROM auditoria WHERE id_usuario = $1 AND acao = $2",
+    )
+    .bind(id_usuario)
+    .bind(acao)
+    .fetch_one(pool)
+    .await
+    .expect("falha ao consultar auditoria")
+}
