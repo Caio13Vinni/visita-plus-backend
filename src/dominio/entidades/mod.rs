@@ -2,4 +2,5 @@
 // Entidades de dominio
 // =============================================================================
 
+pub mod familia;
 pub mod usuario;

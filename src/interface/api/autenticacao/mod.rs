@@ -124,7 +124,13 @@ async fn trocar_senha(
 
     estado
         .autenticacao
-        .trocar_senha(claims.sub, &corpo.senha_atual, &corpo.nova_senha, None, None)
+        .trocar_senha(
+            claims.sub,
+            &corpo.senha_atual,
+            &corpo.nova_senha,
+            None,
+            None,
+        )
         .await
         .map_err(mapear_erro_autenticacao)?;
 
@@ -159,9 +165,7 @@ fn mapear_erro_autenticacao(erro: ErroAutenticacao) -> (StatusCode, Json<ErroApi
     match erro {
         ErroAutenticacao::CredenciaisInvalidas
         | ErroAutenticacao::EmailInvalido
-        | ErroAutenticacao::SenhaFraca => {
-            erro_http(StatusCode::BAD_REQUEST, erro.to_string())
-        }
+        | ErroAutenticacao::SenhaFraca => erro_http(StatusCode::BAD_REQUEST, erro.to_string()),
         ErroAutenticacao::ContaInativa => erro_http(StatusCode::FORBIDDEN, erro.to_string()),
         ErroAutenticacao::NaoEncontrado => erro_http(StatusCode::NOT_FOUND, erro.to_string()),
         ErroAutenticacao::Token(mensagem) => erro_http(StatusCode::UNAUTHORIZED, mensagem),

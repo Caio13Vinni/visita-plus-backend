@@ -3,3 +3,5 @@
 // =============================================================================
 
 pub mod autenticacao;
+pub mod familias;
+pub mod profissionais;

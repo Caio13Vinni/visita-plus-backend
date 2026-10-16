@@ -8,7 +8,7 @@
 //   - interface      : camada externa (API HTTP, DTOs, estado da aplicacao)
 // =============================================================================
 
-pub mod dominio;
 pub mod casos_de_uso;
+pub mod dominio;
 pub mod infraestrutura;
 pub mod interface;
