@@ -4,3 +4,4 @@
 
 pub mod familia;
 pub mod usuario;
+pub mod visita;

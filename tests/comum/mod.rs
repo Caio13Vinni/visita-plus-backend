@@ -126,3 +126,57 @@ pub async fn contar_auditoria(pool: &PgPool, id_usuario: Uuid, acao: &str) -> i6
         .await
         .expect("falha ao consultar auditoria")
 }
+
+/// Cria um usuario de teste vinculado a uma unidade especifica.
+#[allow(dead_code)]
+pub async fn criar_usuario_na_unidade(
+    pool: &PgPool,
+    id_unidade: Uuid,
+    perfil: PerfilUsuario,
+    status: StatusUsuario,
+    exige_troca_senha: bool,
+) -> UsuarioDeTeste {
+    let token = sufixo_unico();
+    let email = format!("usuario_unidade_{token}@teste.com");
+    let senha_hash =
+        senha::gerar_hash_senha("SenhaForte#123").expect("falha ao gerar hash de teste");
+
+    let id = sqlx::query_scalar::<_, Uuid>(
+        "INSERT INTO usuario
+            (id_unidade, nome, email, senha_hash, perfil, status, exige_troca_senha)
+         VALUES ($1, 'Usuario Teste', $2, $3, $4, $5, $6)
+         RETURNING id_usuario",
+    )
+    .bind(id_unidade)
+    .bind(&email)
+    .bind(senha_hash)
+    .bind(perfil)
+    .bind(status)
+    .bind(exige_troca_senha)
+    .fetch_one(pool)
+    .await
+    .expect("falha ao criar usuario");
+
+    UsuarioDeTeste {
+        id,
+        id_unidade,
+        email,
+        senha: "SenhaForte#123".to_string(),
+    }
+}
+
+/// Cria uma familia ficticia de teste na unidade informada (RN24).
+#[allow(dead_code)]
+pub async fn criar_familia(pool: &PgPool, id_unidade: Uuid, codigo: &str) -> Uuid {
+    sqlx::query_scalar::<_, Uuid>(
+        "INSERT INTO familia
+            (id_unidade, codigo, nome_referencia, contato, endereco)
+         VALUES ($1, $2, 'Familia Teste', '(11) 98888-7777', 'Rua de Teste, 100')
+         RETURNING id_familia",
+    )
+    .bind(id_unidade)
+    .bind(codigo)
+    .fetch_one(pool)
+    .await
+    .expect("falha ao criar familia")
+}

@@ -6,6 +6,7 @@ use sqlx::PgPool;
 use std::env;
 use std::sync::Arc;
 
+use crate::casos_de_uso::agendamento::CasoDeUsoAgendamento;
 use crate::casos_de_uso::autenticacao::CasoDeUsoAutenticacao;
 use crate::casos_de_uso::familias::CasoDeUsoFamilias;
 use crate::casos_de_uso::profissionais::CasoDeUsoProfissionais;
@@ -28,6 +29,8 @@ pub struct EstadoAplicacao {
     pub profissionais: CasoDeUsoProfissionais,
     /// Caso de uso UC03 (familias) compartilhado pelos handlers.
     pub familias: CasoDeUsoFamilias,
+    /// Caso de uso UC04 (agendamento de visitas) compartilhado pelos handlers.
+    pub agendamento: CasoDeUsoAgendamento,
     /// Servico de validacao de tokens JWT.
     pub servico_jwt: ServicoJwt,
 }
@@ -52,11 +55,18 @@ impl EstadoAplicacao {
         let autenticacao = CasoDeUsoAutenticacao::novo(
             repositorio_usuario.clone(),
             servico_jwt.clone(),
-            servico_auditoria,
+            servico_auditoria.clone(),
         );
         let profissionais =
             CasoDeUsoProfissionais::novo(repositorio_usuario.clone(), repositorio_visita.clone());
-        let familias = CasoDeUsoFamilias::novo(repositorio_familia, repositorio_usuario);
+        let familias =
+            CasoDeUsoFamilias::novo(repositorio_familia.clone(), repositorio_usuario.clone());
+        let agendamento = CasoDeUsoAgendamento::novo(
+            repositorio_visita,
+            repositorio_familia,
+            repositorio_usuario,
+            servico_auditoria,
+        );
 
         Arc::new(EstadoAplicacao {
             pool,
@@ -64,6 +74,7 @@ impl EstadoAplicacao {
             autenticacao,
             profissionais,
             familias,
+            agendamento,
             servico_jwt,
         })
     }
