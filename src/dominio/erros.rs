@@ -68,6 +68,47 @@ impl From<sqlx::Error> for ErroCadastro {
     }
 }
 
+/// Erros do caso de uso de agendamento de visitas (UC04).
+#[derive(Debug, Error)]
+pub enum ErroAgendamento {
+    /// Usuario autenticado nao possui perfil para a operacao (RN02).
+    #[error("perfil sem permissao para esta operacao")]
+    SemPermissao,
+    /// Visita, familia ou tecnico nao encontrado.
+    #[error("registro nao encontrado")]
+    NaoEncontrado,
+    /// Familia inativa nao recebe novas visitas.
+    #[error("familia inativa nao pode receber novas visitas")]
+    FamiliaInativa,
+    /// Tecnico informado nao pertence a unidade, nao e Tecnico ou esta inativo.
+    #[error("tecnico invalido para esta agenda")]
+    TecnicoInvalido,
+    /// Agendamento retroativo e proibido (RN09).
+    #[error("nao e permitido agendar visita em data ou horario retroativo")]
+    DataRetroativa,
+    /// Conflito de horario na agenda do tecnico (RN10).
+    #[error("o tecnico ja possui visita agendada nesta data e horario")]
+    ConflitoDeHorario,
+    /// Visita nao esta 'Agendada' e nao pode ser alterada/cancelada (RN18).
+    #[error("apenas visitas com status 'Agendada' podem ser alteradas ou canceladas")]
+    VisitaNaoPodeSerAlterada,
+    /// Motivo obrigatorio para cancelamento (RN18).
+    #[error("o motivo do cancelamento e obrigatorio")]
+    MotivoObrigatorio,
+    /// Dados de entrada invalidos.
+    #[error("{0}")]
+    DadosInvalidos(String),
+    /// Falha tecnica na camada de banco ou seguranca.
+    #[error("falha tecnica: {0}")]
+    Tecnica(String),
+}
+
+impl From<sqlx::Error> for ErroAgendamento {
+    fn from(erro: sqlx::Error) -> Self {
+        ErroAgendamento::Tecnica(erro.to_string())
+    }
+}
+
 /// Identifica se um erro SQL corresponde a violacao de constraint UNIQUE.
 pub fn erro_sql_e_violacao_de_unicidade(erro: &sqlx::Error) -> bool {
     if let sqlx::Error::Database(detalhe) = erro {

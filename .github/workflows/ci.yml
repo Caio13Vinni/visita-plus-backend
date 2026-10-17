@@ -1,0 +1,99 @@
+# =============================================================================
+# VISITA+ — CI (GitHub Actions)
+# -----------------------------------------------------------------------------
+# Executado em todo push para main/develop e em todos os Pull Requests:
+#   1. qualidade : cargo fmt --check + cargo clippy -D warnings (sem banco)
+#   2. testes    : suite completa com PostgreSQL 16 (mesma imagem do compose)
+#   3. imagem    : build da imagem Docker da API (artefato de entrega)
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1) Qualidade estatica — feedback rapido, nao exige banco de dados
+  # ---------------------------------------------------------------------------
+  qualidade:
+    name: fmt e clippy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Toolchain Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache de dependencias
+        uses: Swatinem/rust-cache@v2
+
+      - name: "Verifica formatacao (padrao do projeto)"
+        run: cargo fmt --all -- --check
+
+      - name: Clippy — warnings viram erros
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+  # ---------------------------------------------------------------------------
+  # 2) Testes — unitarios + integridade do MER + cenarios UC01 a UC04
+  #    Exige o PostgreSQL do docker-compose em execucao (aqui via service).
+  # ---------------------------------------------------------------------------
+  testes:
+    name: testes com PostgreSQL
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: visita
+          POSTGRES_PASSWORD: visita_forte_2026
+          POSTGRES_DB: visita_plus
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U visita -d visita_plus"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+          --health-start-period 10s
+
+    env:
+      DATABASE_URL: postgres://visita:visita_forte_2026@localhost:5432/visita_plus
+      JWT_SEGREDO: segredo_ci_apenas_para_testes_2026
+      RUST_LOG: info
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Toolchain Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache de dependencias
+        uses: Swatinem/rust-cache@v2
+
+      - name: Suite completa de testes
+        run: cargo test --verbose
+
+  # ---------------------------------------------------------------------------
+  # 3) Imagem Docker — valida o artefato de entrega da API (sem publicar)
+  # ---------------------------------------------------------------------------
+  imagem:
+    name: build da imagem Docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build da imagem (multi-stage)
+        run: docker build -t visita_plus:ci .

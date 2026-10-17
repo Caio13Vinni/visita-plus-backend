@@ -16,6 +16,7 @@ pub mod manipuladores;
 pub mod modelos;
 pub mod profissionais;
 pub mod rotas;
+pub mod visitas;
 
 /// Constroi o roteador raiz da API com todos os modulos registrados.
 pub fn construir_roteador(estado: Arc<EstadoAplicacao>) -> Router {
