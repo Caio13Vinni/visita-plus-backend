@@ -17,6 +17,12 @@ pub mod acao {
     pub const LOGIN_BLOQUEADO: &str = "LOGIN_BLOQUEADO";
     /// Troca de senha realizada.
     pub const TROCA_SENHA: &str = "TROCA_SENHA";
+    /// Novo agendamento de visita registrado (UC04).
+    pub const VISITA_AGENDADA: &str = "VISITA_AGENDADA";
+    /// Reagendamento de visita, com troca de data/horario/responsavel (RN18).
+    pub const VISITA_REAGENDADA: &str = "VISITA_REAGENDADA";
+    /// Cancelamento de agendamento de visita (RN18).
+    pub const VISITA_CANCELADA: &str = "VISITA_CANCELADA";
 }
 
 /// Servico que registra eventos na tabela de auditoria.
@@ -72,5 +78,8 @@ mod testes {
         assert_eq!(acao::LOGIN_FALHA, "LOGIN_FALHA");
         assert_eq!(acao::LOGIN_BLOQUEADO, "LOGIN_BLOQUEADO");
         assert_eq!(acao::TROCA_SENHA, "TROCA_SENHA");
+        assert_eq!(acao::VISITA_AGENDADA, "VISITA_AGENDADA");
+        assert_eq!(acao::VISITA_REAGENDADA, "VISITA_REAGENDADA");
+        assert_eq!(acao::VISITA_CANCELADA, "VISITA_CANCELADA");
     }
 }

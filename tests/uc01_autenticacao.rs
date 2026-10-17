@@ -10,18 +10,16 @@
 mod comum;
 
 use axum::body::Body;
-use axum::http::{header, Request, StatusCode};
+use axum::http::{Request, StatusCode, header};
 use std::sync::Arc;
 use tower::ServiceExt;
 
 use comum::*;
-use visita_plus::casos_de_uso::autenticacao::{
-    CasoDeUsoAutenticacao, Credenciais,
-};
+use visita_plus::casos_de_uso::autenticacao::{CasoDeUsoAutenticacao, Credenciais};
 use visita_plus::dominio::enums::{PerfilUsuario, StatusUsuario};
 use visita_plus::dominio::erros::ErroAutenticacao;
-use visita_plus::infraestrutura::auditoria::acao;
 use visita_plus::infraestrutura::auditoria::ServicoAuditoria;
+use visita_plus::infraestrutura::auditoria::acao;
 use visita_plus::infraestrutura::repositorios::usuario_repositorio::RepositorioUsuarioPostgres;
 use visita_plus::infraestrutura::seguranca::jwt::ServicoJwt;
 use visita_plus::interface::api::construir_roteador;
@@ -117,7 +115,10 @@ async fn login_de_conta_inativa_e_bloqueado_e_auditado() {
     assert!(matches!(erro, ErroAutenticacao::ContaInativa));
 
     let total = contar_auditoria(&pool, usuario.id, acao::LOGIN_BLOQUEADO).await;
-    assert_eq!(total, 1, "deveria haver 1 evento LOGIN_BLOQUEADO na auditoria");
+    assert_eq!(
+        total, 1,
+        "deveria haver 1 evento LOGIN_BLOQUEADO na auditoria"
+    );
 }
 
 #[tokio::test]
@@ -147,7 +148,13 @@ async fn primeiro_acesso_exige_troca_de_senha() {
 #[tokio::test]
 async fn troca_de_senha_limpa_exigencia_e_permite_login_com_nova_senha() {
     let pool = preparar_banco().await;
-    let usuario = criar_usuario(&pool, PerfilUsuario::Coordenador, StatusUsuario::Ativo, true).await;
+    let usuario = criar_usuario(
+        &pool,
+        PerfilUsuario::Coordenador,
+        StatusUsuario::Ativo,
+        true,
+    )
+    .await;
     let caso = montar_caso_de_uso(&pool);
 
     caso.trocar_senha(usuario.id, &usuario.senha, "NovaSenha#456", None, None)
@@ -180,7 +187,10 @@ async fn troca_de_senha_limpa_exigencia_e_permite_login_com_nova_senha() {
         )
         .await
         .expect("nova senha deveria funcionar");
-    assert!(!resultado.exige_troca_senha, "exigencia de troca deve ser limpa");
+    assert!(
+        !resultado.exige_troca_senha,
+        "exigencia de troca deve ser limpa"
+    );
 }
 
 #[tokio::test]
@@ -230,17 +240,16 @@ async fn login_com_sucesso_registra_ultimo_acesso() {
     let usuario = criar_usuario(&pool, PerfilUsuario::Tecnico, StatusUsuario::Ativo, false).await;
     let caso = montar_caso_de_uso(&pool);
 
-    caso
-        .autenticar(
-            Credenciais {
-                email: usuario.email,
-                senha: usuario.senha,
-            },
-            None,
-            None,
-        )
-        .await
-        .expect("login deveria ter sucesso");
+    caso.autenticar(
+        Credenciais {
+            email: usuario.email,
+            senha: usuario.senha,
+        },
+        None,
+        None,
+    )
+    .await
+    .expect("login deveria ter sucesso");
 
     let ultimo_acesso: Option<chrono::DateTime<chrono::Utc>> =
         sqlx::query_scalar("SELECT ultimo_acesso_em FROM usuario WHERE id_usuario = $1")
@@ -260,17 +269,21 @@ async fn login_com_sucesso_registra_ultimo_acesso() {
 
 /// Constroi o roteador com estado real (JWT default de desenvolvimento).
 fn montar_roteador(pool: sqlx::PgPool) -> axum::Router {
-    let estado = EstadoAplicacao::novo(
-        pool,
-        format!("/tmp/visita_plus_http_{}.db", sufixo_unico()),
-    );
+    let estado =
+        EstadoAplicacao::novo(pool, format!("/tmp/visita_plus_http_{}.db", sufixo_unico()));
     construir_roteador(estado)
 }
 
 #[tokio::test]
 async fn endpoint_login_responde_200_com_token() {
     let pool = preparar_banco().await;
-    let usuario = criar_usuario(&pool, PerfilUsuario::Coordenador, StatusUsuario::Ativo, false).await;
+    let usuario = criar_usuario(
+        &pool,
+        PerfilUsuario::Coordenador,
+        StatusUsuario::Ativo,
+        false,
+    )
+    .await;
     let roteador = montar_roteador(pool);
 
     let corpo = serde_json::json!({
@@ -358,19 +371,24 @@ async fn endpoint_login_de_conta_inativa_responde_403() {
 async fn endpoint_trocar_senha_aceita_token_valido() {
     let pool = preparar_banco().await;
     let usuario = criar_usuario(&pool, PerfilUsuario::Tecnico, StatusUsuario::Ativo, true).await;
-    let servico = ServicoJwt::novo("segredo_de_desenvolvimento_visita_plus", 60);
-    let token = servico.emitir(&visita_plus::dominio::entidades::usuario::Usuario {
-        id: usuario.id,
-        id_unidade: usuario.id_unidade,
-        nome: "Usuario Teste".into(),
-        email: usuario.email.clone(),
-        senha_hash: "nao_utilizado".into(),
-        perfil: PerfilUsuario::Tecnico,
-        status: StatusUsuario::Ativo,
-        exige_troca_senha: true,
-        ultimo_acesso_em: None,
-    })
-    .expect("deve emitir token");
+    // Mesma resolucao de segredo do EstadoAplicacao::novo, para o token
+    // bater com o servico de validacao do roteador mesmo com .env presente.
+    let segredo = std::env::var("JWT_SEGREDO")
+        .unwrap_or_else(|_| "segredo_de_desenvolvimento_visita_plus".to_string());
+    let servico = ServicoJwt::novo(segredo, 60);
+    let token = servico
+        .emitir(&visita_plus::dominio::entidades::usuario::Usuario {
+            id: usuario.id,
+            id_unidade: usuario.id_unidade,
+            nome: "Usuario Teste".into(),
+            email: usuario.email.clone(),
+            senha_hash: "nao_utilizado".into(),
+            perfil: PerfilUsuario::Tecnico,
+            status: StatusUsuario::Ativo,
+            exige_troca_senha: true,
+            ultimo_acesso_em: None,
+        })
+        .expect("deve emitir token");
 
     let roteador = montar_roteador(pool);
     let corpo = serde_json::json!({

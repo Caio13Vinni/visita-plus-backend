@@ -6,9 +6,14 @@ use sqlx::PgPool;
 use std::env;
 use std::sync::Arc;
 
+use crate::casos_de_uso::agendamento::CasoDeUsoAgendamento;
 use crate::casos_de_uso::autenticacao::CasoDeUsoAutenticacao;
+use crate::casos_de_uso::familias::CasoDeUsoFamilias;
+use crate::casos_de_uso::profissionais::CasoDeUsoProfissionais;
 use crate::infraestrutura::auditoria::ServicoAuditoria;
+use crate::infraestrutura::repositorios::familia_repositorio::RepositorioFamiliaPostgres;
 use crate::infraestrutura::repositorios::usuario_repositorio::RepositorioUsuarioPostgres;
+use crate::infraestrutura::repositorios::visita_repositorio::RepositorioVisitaPostgres;
 use crate::infraestrutura::seguranca::jwt::ServicoJwt;
 
 /// Estado transportado pelos handlers da API.
@@ -20,6 +25,12 @@ pub struct EstadoAplicacao {
     pub endereco_sqlite: String,
     /// Caso de uso UC01 (autenticacao) compartilhado pelos handlers.
     pub autenticacao: CasoDeUsoAutenticacao,
+    /// Caso de uso UC02 (profissionais) compartilhado pelos handlers.
+    pub profissionais: CasoDeUsoProfissionais,
+    /// Caso de uso UC03 (familias) compartilhado pelos handlers.
+    pub familias: CasoDeUsoFamilias,
+    /// Caso de uso UC04 (agendamento de visitas) compartilhado pelos handlers.
+    pub agendamento: CasoDeUsoAgendamento,
     /// Servico de validacao de tokens JWT.
     pub servico_jwt: ServicoJwt,
 }
@@ -36,14 +47,34 @@ impl EstadoAplicacao {
 
         let servico_jwt = ServicoJwt::novo(segredo, expiracao_minutos);
         let servico_auditoria = ServicoAuditoria::novo(pool.clone());
-        let repositorio = Arc::new(RepositorioUsuarioPostgres::novo(pool.clone()));
-        let autenticacao =
-            CasoDeUsoAutenticacao::novo(repositorio, servico_jwt.clone(), servico_auditoria);
+
+        let repositorio_usuario = Arc::new(RepositorioUsuarioPostgres::novo(pool.clone()));
+        let repositorio_familia = Arc::new(RepositorioFamiliaPostgres::novo(pool.clone()));
+        let repositorio_visita = Arc::new(RepositorioVisitaPostgres::novo(pool.clone()));
+
+        let autenticacao = CasoDeUsoAutenticacao::novo(
+            repositorio_usuario.clone(),
+            servico_jwt.clone(),
+            servico_auditoria.clone(),
+        );
+        let profissionais =
+            CasoDeUsoProfissionais::novo(repositorio_usuario.clone(), repositorio_visita.clone());
+        let familias =
+            CasoDeUsoFamilias::novo(repositorio_familia.clone(), repositorio_usuario.clone());
+        let agendamento = CasoDeUsoAgendamento::novo(
+            repositorio_visita,
+            repositorio_familia,
+            repositorio_usuario,
+            servico_auditoria,
+        );
 
         Arc::new(EstadoAplicacao {
             pool,
             endereco_sqlite,
             autenticacao,
+            profissionais,
+            familias,
+            agendamento,
             servico_jwt,
         })
     }

@@ -13,9 +13,8 @@ use std::collections::HashSet;
 /// Obter a URL do banco a partir do ambiente.
 fn url_do_banco() -> String {
     dotenvy::dotenv().ok();
-    std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-        "postgres://visita:visita_forte_2026@localhost:5432/visita_plus".into()
-    })
+    std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "postgres://visita:visita_forte_2026@localhost:5432/visita_plus".into())
 }
 
 /// Abre o pool e aplica as migracoes do MER.
@@ -121,11 +120,23 @@ async fn cada_tabela_do_mer_possui_suas_colunas_essenciais() {
         ),
         (
             "sessao",
-            vec!["id_sessao", "id_usuario", "token_jwt", "expira_em", "encerrada_em"],
+            vec![
+                "id_sessao",
+                "id_usuario",
+                "token_jwt",
+                "expira_em",
+                "encerrada_em",
+            ],
         ),
         (
             "recuperacao_acesso",
-            vec!["id_recuperacao", "id_usuario", "codigo", "expira_em", "usado_em"],
+            vec![
+                "id_recuperacao",
+                "id_usuario",
+                "codigo",
+                "expira_em",
+                "usado_em",
+            ],
         ),
         (
             "familia",
@@ -182,7 +193,13 @@ async fn cada_tabela_do_mer_possui_suas_colunas_essenciais() {
         ),
         (
             "complemento_registro",
-            vec!["id_complemento", "id_registro", "descricao", "motivo", "registrado_por"],
+            vec![
+                "id_complemento",
+                "id_registro",
+                "descricao",
+                "motivo",
+                "registrado_por",
+            ],
         ),
         (
             "encaminhamento",
@@ -252,13 +269,12 @@ async fn enums_do_mer_estao_registrados() {
     ];
 
     for enum_ in enums_esperados {
-        let existe: Option<String> = sqlx::query_scalar(
-            "SELECT typname FROM pg_type WHERE typname = $1",
-        )
-        .bind(enum_)
-        .fetch_optional(&pool)
-        .await
-        .expect("falha ao consultar pg_type");
+        let existe: Option<String> =
+            sqlx::query_scalar("SELECT typname FROM pg_type WHERE typname = $1")
+                .bind(enum_)
+                .fetch_optional(&pool)
+                .await
+                .expect("falha ao consultar pg_type");
         assert!(existe.is_some(), "enum do MER ausente: {enum_}");
     }
 }
@@ -351,7 +367,11 @@ async fn email_de_usuario_duplicado_e_rejeitado() {
         .await
         .expect("primeiro usuario deveria ser inserido");
 
-    let resultado = sqlx::query(sql).bind(unidade).bind(email).execute(&pool).await;
+    let resultado = sqlx::query(sql)
+        .bind(unidade)
+        .bind(email)
+        .execute(&pool)
+        .await;
     let erro = resultado.expect_err("email duplicado deveria violar UNIQUE");
     assert!(
         erro.to_string().contains("unique"),
