@@ -42,6 +42,26 @@ impl StatusUsuario {
     }
 }
 
+/// Status do cadastro de familia (UC03).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, serde::Serialize, serde::Deserialize)]
+#[sqlx(type_name = "status_familia", rename_all = "PascalCase")]
+pub enum StatusFamilia {
+    /// Familia ativa e assistida pela unidade.
+    Ativa,
+    /// Familia inativa (sem novas visitas).
+    Inativa,
+}
+
+impl StatusFamilia {
+    /// Retorna o nome legivel do status.
+    pub fn como_str(self) -> &'static str {
+        match self {
+            StatusFamilia::Ativa => "Ativa",
+            StatusFamilia::Inativa => "Inativa",
+        }
+    }
+}
+
 #[cfg(test)]
 mod testes {
     use super::*;
@@ -56,5 +76,7 @@ mod testes {
     fn status_seraliza_como_pascal_case_do_banco() {
         assert_eq!(StatusUsuario::Ativo.como_str(), "Ativo");
         assert_eq!(StatusUsuario::Inativo.como_str(), "Inativo");
+        assert_eq!(StatusFamilia::Ativa.como_str(), "Ativa");
+        assert_eq!(StatusFamilia::Inativa.como_str(), "Inativa");
     }
 }

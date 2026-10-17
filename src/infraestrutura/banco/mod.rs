@@ -2,8 +2,8 @@
 // Infraestrutura de banco de dados — PostgreSQL (central) e SQLite (local)
 // =============================================================================
 
-use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
 
 /// Cria o pool de conexoes com o banco central (PostgreSQL).
 pub async fn criar_pool(url_banco: &str) -> anyhow::Result<PgPool> {

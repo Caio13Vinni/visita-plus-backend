@@ -12,9 +12,8 @@ use visita_plus::infraestrutura::seguranca::senha;
 /// URL do banco central a partir do ambiente.
 pub fn url_do_banco() -> String {
     dotenvy::dotenv().ok();
-    std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-        "postgres://visita:visita_forte_2026@localhost:5432/visita_plus".into()
-    })
+    std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "postgres://visita:visita_forte_2026@localhost:5432/visita_plus".into())
 }
 
 /// Abre o pool e aplica as migracoes do MER.
@@ -35,7 +34,11 @@ pub fn sufixo_unico() -> String {
 }
 
 /// Dados retornados apos criar um usuario de teste.
+///
+/// Nem todo alvo de teste le todos os campos/usa todos os helpers de
+/// `comum` (o modulo e compilado por suite), logo o dead_code e tolerado.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct UsuarioDeTeste {
     pub id: Uuid,
     pub id_unidade: Uuid,
@@ -66,7 +69,15 @@ pub async fn criar_usuario(
 ) -> UsuarioDeTeste {
     let token = sufixo_unico();
     let email = format!("usuario_{token}@teste.com");
-    criar_usuario_com(pool, &email, "SenhaForte#123", perfil, status, exige_troca_senha).await
+    criar_usuario_com(
+        pool,
+        &email,
+        "SenhaForte#123",
+        perfil,
+        status,
+        exige_troca_senha,
+    )
+    .await
 }
 
 /// Cria um usuario de teste com e-mail e senha controlados.
@@ -106,17 +117,12 @@ pub async fn criar_usuario_com(
 }
 
 /// Retorna a quantidade de eventos de auditoria de uma acao para um usuario.
-pub async fn contar_auditoria(
-    pool: &PgPool,
-    id_usuario: Uuid,
-    acao: &str,
-) -> i64 {
-    sqlx::query_scalar(
-        "SELECT count(*) FROM auditoria WHERE id_usuario = $1 AND acao = $2",
-    )
-    .bind(id_usuario)
-    .bind(acao)
-    .fetch_one(pool)
-    .await
-    .expect("falha ao consultar auditoria")
+#[allow(dead_code)]
+pub async fn contar_auditoria(pool: &PgPool, id_usuario: Uuid, acao: &str) -> i64 {
+    sqlx::query_scalar("SELECT count(*) FROM auditoria WHERE id_usuario = $1 AND acao = $2")
+        .bind(id_usuario)
+        .bind(acao)
+        .fetch_one(pool)
+        .await
+        .expect("falha ao consultar auditoria")
 }

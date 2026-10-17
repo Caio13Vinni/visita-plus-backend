@@ -14,8 +14,8 @@ use uuid::Uuid;
 
 use crate::dominio::entidades::usuario::Usuario;
 use crate::dominio::erros::ErroAutenticacao;
-use crate::infraestrutura::auditoria::acao;
 use crate::infraestrutura::auditoria::ServicoAuditoria;
+use crate::infraestrutura::auditoria::acao;
 use crate::infraestrutura::repositorios::usuario_repositorio::RepositorioUsuario;
 use crate::infraestrutura::seguranca::jwt::ServicoJwt;
 use crate::infraestrutura::seguranca::senha;

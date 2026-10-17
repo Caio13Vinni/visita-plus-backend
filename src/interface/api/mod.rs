@@ -2,16 +2,19 @@
 // Interface HTTP — construcao do roteador da API
 // =============================================================================
 
-use axum::routing::get;
 use axum::Router;
+use axum::routing::get;
 use std::sync::Arc;
 
 use super::estado::EstadoAplicacao;
 use crate::interface::api::manipuladores::verificar_saude;
 
 pub mod autenticacao;
+pub mod extratores;
+pub mod familias;
 pub mod manipuladores;
 pub mod modelos;
+pub mod profissionais;
 pub mod rotas;
 
 /// Constroi o roteador raiz da API com todos os modulos registrados.

@@ -22,8 +22,9 @@ async fn main() -> anyhow::Result<()> {
         )
         .init();
 
-    let url_banco = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://visita:visita_forte_2026@localhost:5432/visita_plus".to_string());
+    let url_banco = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+        "postgres://visita:visita_forte_2026@localhost:5432/visita_plus".to_string()
+    });
     let endereco_sqlite = std::env::var("SQLITE_ENDERECO")
         .unwrap_or_else(|_| "/tmp/visita_plus_local.db".to_string());
 

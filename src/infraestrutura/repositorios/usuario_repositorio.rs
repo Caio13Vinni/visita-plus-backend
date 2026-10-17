@@ -10,6 +10,16 @@ use uuid::Uuid;
 use crate::dominio::entidades::usuario::Usuario;
 use crate::dominio::enums::{PerfilUsuario, StatusUsuario};
 
+/// Dados para criacao de um novo usuario (UC02).
+#[derive(Debug, Clone)]
+pub struct NovoUsuario {
+    pub id_unidade: Uuid,
+    pub nome: String,
+    pub email: String,
+    pub senha_hash: String,
+    pub perfil: PerfilUsuario,
+}
+
 /// Contrato de persistencia da entidade Usuario.
 #[async_trait]
 pub trait RepositorioUsuario: Send + Sync {
@@ -18,6 +28,23 @@ pub trait RepositorioUsuario: Send + Sync {
 
     /// Busca um usuario pelo identificador.
     async fn buscar_por_id(&self, id: Uuid) -> Result<Option<Usuario>, sqlx::Error>;
+
+    /// Lista os usuarios (profissionais) do sistema, opcionalmente por unidade.
+    async fn listar(&self, id_unidade: Option<Uuid>) -> Result<Vec<Usuario>, sqlx::Error>;
+
+    /// Persiste um novo usuario e devolve a entidade criada.
+    async fn criar(&self, novo: &NovoUsuario) -> Result<Usuario, sqlx::Error>;
+
+    /// Atualiza nome e perfil de um usuario (UC02).
+    async fn atualizar(
+        &self,
+        id: Uuid,
+        nome: &str,
+        perfil: PerfilUsuario,
+    ) -> Result<(), sqlx::Error>;
+
+    /// Altera o status da conta (ativar/desativar — UC02).
+    async fn alterar_status(&self, id: Uuid, status: StatusUsuario) -> Result<(), sqlx::Error>;
 
     /// Registra o horario do ultimo acesso bem-sucedido.
     async fn registrar_ultimo_acesso(&self, id: Uuid) -> Result<(), sqlx::Error>;
@@ -70,6 +97,76 @@ impl RepositorioUsuario for RepositorioUsuarioPostgres {
         .fetch_optional(&self.pool)
         .await
         .map(|linha| linha.map(UsuarioLinha::para_usuario))
+    }
+
+    async fn listar(&self, id_unidade: Option<Uuid>) -> Result<Vec<Usuario>, sqlx::Error> {
+        let linhas = match id_unidade {
+            Some(unidade) => {
+                sqlx::query_as::<_, UsuarioLinha>(
+                    "SELECT id_usuario, id_unidade, nome, email, senha_hash, perfil, status,
+                            exige_troca_senha, ultimo_acesso_em
+                       FROM usuario
+                      WHERE id_unidade = $1
+                      ORDER BY nome",
+                )
+                .bind(unidade)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            None => {
+                sqlx::query_as::<_, UsuarioLinha>(
+                    "SELECT id_usuario, id_unidade, nome, email, senha_hash, perfil, status,
+                            exige_troca_senha, ultimo_acesso_em
+                       FROM usuario
+                      ORDER BY nome",
+                )
+                .fetch_all(&self.pool)
+                .await?
+            }
+        };
+        Ok(linhas.into_iter().map(UsuarioLinha::para_usuario).collect())
+    }
+
+    async fn criar(&self, novo: &NovoUsuario) -> Result<Usuario, sqlx::Error> {
+        let linha = sqlx::query_as::<_, UsuarioLinha>(
+            "INSERT INTO usuario
+                (id_unidade, nome, email, senha_hash, perfil, status, exige_troca_senha)
+             VALUES ($1, $2, $3, $4, $5, 'Ativo', TRUE)
+             RETURNING id_usuario, id_unidade, nome, email, senha_hash, perfil, status,
+                       exige_troca_senha, ultimo_acesso_em",
+        )
+        .bind(novo.id_unidade)
+        .bind(&novo.nome)
+        .bind(&novo.email)
+        .bind(&novo.senha_hash)
+        .bind(novo.perfil)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(linha.para_usuario())
+    }
+
+    async fn atualizar(
+        &self,
+        id: Uuid,
+        nome: &str,
+        perfil: PerfilUsuario,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE usuario SET nome = $1, perfil = $2 WHERE id_usuario = $3")
+            .bind(nome)
+            .bind(perfil)
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+    }
+
+    async fn alterar_status(&self, id: Uuid, status: StatusUsuario) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE usuario SET status = $1 WHERE id_usuario = $2")
+            .bind(status)
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
     }
 
     async fn registrar_ultimo_acesso(&self, id: Uuid) -> Result<(), sqlx::Error> {
