@@ -109,6 +109,41 @@ impl From<sqlx::Error> for ErroAgendamento {
     }
 }
 
+/// Erros do caso de uso de registro da visita (UC05).
+#[derive(Debug, Error)]
+pub enum ErroRegistro {
+    /// Usuario autenticado nao possui permissao (RN05/RN06).
+    #[error("perfil sem permissao para esta operacao")]
+    SemPermissao,
+    /// Registro ou visita nao encontrado.
+    #[error("registro nao encontrado")]
+    NaoEncontrado,
+    /// Visita nao esta 'Agendada' e nao pode ser iniciada.
+    #[error("apenas visitas com status 'Agendada' podem ser iniciadas")]
+    VisitaNaoAgendada,
+    /// Visita nao esta 'Em andamento' e nao aceita edicao do registro.
+    #[error("apenas visitas 'Em andamento' aceitam edicao do registro")]
+    VisitaNaoEmAndamento,
+    /// Registro ja foi finalizado e e imutavel (RN16).
+    #[error("registro finalizado e imutavel: corrija via complemento (RN16)")]
+    RegistroNaoRascunho,
+    /// Complemento so e permitido em registro finalizado (RN17).
+    #[error("complemento exige um registro finalizado")]
+    RegistroNaoFinalizado,
+    /// Dados de entrada invalidos (RN13/RN14).
+    #[error("{0}")]
+    DadosInvalidos(String),
+    /// Falha tecnica na camada de banco ou seguranca.
+    #[error("falha tecnica: {0}")]
+    Tecnica(String),
+}
+
+impl From<sqlx::Error> for ErroRegistro {
+    fn from(erro: sqlx::Error) -> Self {
+        ErroRegistro::Tecnica(erro.to_string())
+    }
+}
+
 /// Identifica se um erro SQL corresponde a violacao de constraint UNIQUE.
 pub fn erro_sql_e_violacao_de_unicidade(erro: &sqlx::Error) -> bool {
     if let sqlx::Error::Database(detalhe) = erro {

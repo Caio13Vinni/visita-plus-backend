@@ -15,6 +15,7 @@ pub mod familias;
 pub mod manipuladores;
 pub mod modelos;
 pub mod profissionais;
+pub mod registros;
 pub mod rotas;
 pub mod visitas;
 

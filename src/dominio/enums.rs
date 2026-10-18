@@ -127,6 +127,48 @@ impl StatusVisita {
     }
 }
 
+/// Status do registro da visita (UC05 / RN12).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, serde::Serialize, serde::Deserialize)]
+#[sqlx(type_name = "status_registro", rename_all = "PascalCase")]
+pub enum StatusRegistro {
+    /// Rascunho: registro em edicao pelo tecnico (RN12).
+    Rascunho,
+    /// Finalizado: registro fechado e imutavel (RN16).
+    Finalizado,
+}
+
+impl StatusRegistro {
+    /// Retorna o nome legivel do status.
+    pub fn como_str(self) -> &'static str {
+        match self {
+            StatusRegistro::Rascunho => "Rascunho",
+            StatusRegistro::Finalizado => "Finalizado",
+        }
+    }
+}
+
+/// Resultado da tentativa de visita (UC05 / RN13, RN14).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, serde::Serialize, serde::Deserialize)]
+#[sqlx(type_name = "resultado_registro", rename_all = "PascalCase")]
+pub enum ResultadoRegistro {
+    /// Visita realizada com sucesso.
+    Realizada,
+    /// Visita tentada, mas nao realizada (exige motivo — RN14).
+    #[sqlx(rename = "Não realizada")]
+    #[serde(rename = "Não realizada")]
+    NaoRealizada,
+}
+
+impl ResultadoRegistro {
+    /// Retorna o nome legivel do resultado (valor do banco).
+    pub fn como_str(self) -> &'static str {
+        match self {
+            ResultadoRegistro::Realizada => "Realizada",
+            ResultadoRegistro::NaoRealizada => "Não realizada",
+        }
+    }
+}
+
 #[cfg(test)]
 mod testes {
     use super::*;
@@ -168,5 +210,13 @@ mod testes {
         assert!(!StatusVisita::Realizada.pode_ser_alterada());
         assert!(!StatusVisita::NaoRealizada.pode_ser_alterada());
         assert!(!StatusVisita::Cancelada.pode_ser_alterada());
+    }
+
+    #[test]
+    fn resultado_registro_espelha_valores_acentuados_do_banco() {
+        assert_eq!(ResultadoRegistro::Realizada.como_str(), "Realizada");
+        assert_eq!(ResultadoRegistro::NaoRealizada.como_str(), "Não realizada");
+        assert_eq!(StatusRegistro::Rascunho.como_str(), "Rascunho");
+        assert_eq!(StatusRegistro::Finalizado.como_str(), "Finalizado");
     }
 }
