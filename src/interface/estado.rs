@@ -10,8 +10,10 @@ use crate::casos_de_uso::agendamento::CasoDeUsoAgendamento;
 use crate::casos_de_uso::autenticacao::CasoDeUsoAutenticacao;
 use crate::casos_de_uso::familias::CasoDeUsoFamilias;
 use crate::casos_de_uso::profissionais::CasoDeUsoProfissionais;
+use crate::casos_de_uso::registro::CasoDeUsoRegistro;
 use crate::infraestrutura::auditoria::ServicoAuditoria;
 use crate::infraestrutura::repositorios::familia_repositorio::RepositorioFamiliaPostgres;
+use crate::infraestrutura::repositorios::registro_repositorio::RepositorioRegistroPostgres;
 use crate::infraestrutura::repositorios::usuario_repositorio::RepositorioUsuarioPostgres;
 use crate::infraestrutura::repositorios::visita_repositorio::RepositorioVisitaPostgres;
 use crate::infraestrutura::seguranca::jwt::ServicoJwt;
@@ -31,6 +33,8 @@ pub struct EstadoAplicacao {
     pub familias: CasoDeUsoFamilias,
     /// Caso de uso UC04 (agendamento de visitas) compartilhado pelos handlers.
     pub agendamento: CasoDeUsoAgendamento,
+    /// Caso de uso UC05 (registro da visita) compartilhado pelos handlers.
+    pub registro: CasoDeUsoRegistro,
     /// Servico de validacao de tokens JWT.
     pub servico_jwt: ServicoJwt,
 }
@@ -62,6 +66,13 @@ impl EstadoAplicacao {
         let familias =
             CasoDeUsoFamilias::novo(repositorio_familia.clone(), repositorio_usuario.clone());
         let agendamento = CasoDeUsoAgendamento::novo(
+            repositorio_visita.clone(),
+            repositorio_familia.clone(),
+            repositorio_usuario.clone(),
+            servico_auditoria.clone(),
+        );
+        let registro = CasoDeUsoRegistro::novo(
+            Arc::new(RepositorioRegistroPostgres::novo(pool.clone())),
             repositorio_visita,
             repositorio_familia,
             repositorio_usuario,
@@ -75,6 +86,7 @@ impl EstadoAplicacao {
             profissionais,
             familias,
             agendamento,
+            registro,
             servico_jwt,
         })
     }

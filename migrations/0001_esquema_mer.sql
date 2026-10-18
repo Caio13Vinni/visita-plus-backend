@@ -169,14 +169,17 @@ CREATE TABLE registro_visita (
     registrado_por        UUID NOT NULL REFERENCES usuario(id_usuario),
     criado_em             TIMESTAMPTZ NOT NULL DEFAULT now(),
     atualizado_em         TIMESTAMPTZ NOT NULL DEFAULT now(),
-    -- RN13/RN14: visitas realizadas exigem resultado, descricao e hora de fim;
-    -- visitas nao realizadas exigem motivo obrigatorio
+    -- RN13/RN14: registro finalizado como realizado exige descricao e hora de
+    -- fim; finalizado como nao realizado exige motivo obrigatorio. Rascunhos
+    -- (RN12) permanecem livres para salvar dados parciais.
     CONSTRAINT chk_registro_realizada CHECK (
-        resultado IS DISTINCT FROM 'Realizada'
+        status IS DISTINCT FROM 'Finalizado'
+        OR resultado IS DISTINCT FROM 'Realizada'
         OR (descricao IS NOT NULL AND length(btrim(descricao)) > 0 AND data_hora_fim IS NOT NULL)
     ),
     CONSTRAINT chk_registro_nao_realizada CHECK (
-        resultado IS DISTINCT FROM 'Não realizada'
+        status IS DISTINCT FROM 'Finalizado'
+        OR resultado IS DISTINCT FROM 'Não realizada'
         OR (motivo_nao_realizada IS NOT NULL AND length(btrim(motivo_nao_realizada)) > 0)
     )
 );

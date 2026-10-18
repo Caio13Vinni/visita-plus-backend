@@ -61,6 +61,10 @@ pub trait RepositorioVisita: Send + Sync {
 
     /// Marca o agendamento como cancelado, com motivo obrigatorio (RN18).
     async fn cancelar(&self, id: Uuid, motivo: &str) -> Result<(), sqlx::Error>;
+
+    /// Atualiza o status da visita (UC05: Em andamento, Realizada,
+    /// Nao realizada).
+    async fn atualizar_status(&self, id: Uuid, status: StatusVisita) -> Result<(), sqlx::Error>;
 }
 
 /// Implementacao concreta do repositorio de visitas sobre o PostgreSQL.
@@ -270,6 +274,15 @@ impl RepositorioVisita for RepositorioVisitaPostgres {
         .execute(&self.pool)
         .await
         .map(|_| ())
+    }
+
+    async fn atualizar_status(&self, id: Uuid, status: StatusVisita) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE visita SET status = $1 WHERE id_visita = $2")
+            .bind(status)
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
     }
 }
 

@@ -23,6 +23,12 @@ pub mod acao {
     pub const VISITA_REAGENDADA: &str = "VISITA_REAGENDADA";
     /// Cancelamento de agendamento de visita (RN18).
     pub const VISITA_CANCELADA: &str = "VISITA_CANCELADA";
+    /// Inicio da execucao da visita (rascunho do registro — UC05/RN12).
+    pub const REGISTRO_INICIADO: &str = "REGISTRO_INICIADO";
+    /// Finalizacao do registro da visita (UC05/RN13/RN14).
+    pub const REGISTRO_FINALIZADO: &str = "REGISTRO_FINALIZADO";
+    /// Complemento imutavel em registro finalizado (UC05/RN16/RN17).
+    pub const COMPLEMENTO_REGISTRADO: &str = "COMPLEMENTO_REGISTRADO";
 }
 
 /// Servico que registra eventos na tabela de auditoria.
@@ -81,5 +87,8 @@ mod testes {
         assert_eq!(acao::VISITA_AGENDADA, "VISITA_AGENDADA");
         assert_eq!(acao::VISITA_REAGENDADA, "VISITA_REAGENDADA");
         assert_eq!(acao::VISITA_CANCELADA, "VISITA_CANCELADA");
+        assert_eq!(acao::REGISTRO_INICIADO, "REGISTRO_INICIADO");
+        assert_eq!(acao::REGISTRO_FINALIZADO, "REGISTRO_FINALIZADO");
+        assert_eq!(acao::COMPLEMENTO_REGISTRADO, "COMPLEMENTO_REGISTRADO");
     }
 }
