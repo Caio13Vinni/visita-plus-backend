@@ -11,9 +11,11 @@ use crate::casos_de_uso::autenticacao::CasoDeUsoAutenticacao;
 use crate::casos_de_uso::familias::CasoDeUsoFamilias;
 use crate::casos_de_uso::profissionais::CasoDeUsoProfissionais;
 use crate::casos_de_uso::registro::CasoDeUsoRegistro;
+use crate::casos_de_uso::solicitacao_retorno::CasoDeUsoSolicitacaoRetorno;
 use crate::infraestrutura::auditoria::ServicoAuditoria;
 use crate::infraestrutura::repositorios::familia_repositorio::RepositorioFamiliaPostgres;
 use crate::infraestrutura::repositorios::registro_repositorio::RepositorioRegistroPostgres;
+use crate::infraestrutura::repositorios::solicitacao_repositorio::RepositorioSolicitacaoPostgres;
 use crate::infraestrutura::repositorios::usuario_repositorio::RepositorioUsuarioPostgres;
 use crate::infraestrutura::repositorios::visita_repositorio::RepositorioVisitaPostgres;
 use crate::infraestrutura::seguranca::jwt::ServicoJwt;
@@ -35,6 +37,8 @@ pub struct EstadoAplicacao {
     pub agendamento: CasoDeUsoAgendamento,
     /// Caso de uso UC05 (registro da visita) compartilhado pelos handlers.
     pub registro: CasoDeUsoRegistro,
+    /// Caso de uso UC08 (solicitacao de retorno) compartilhado pelos handlers.
+    pub solicitacao_retorno: CasoDeUsoSolicitacaoRetorno,
     /// Servico de validacao de tokens JWT.
     pub servico_jwt: ServicoJwt,
 }
@@ -73,6 +77,13 @@ impl EstadoAplicacao {
         );
         let registro = CasoDeUsoRegistro::novo(
             Arc::new(RepositorioRegistroPostgres::novo(pool.clone())),
+            repositorio_visita.clone(),
+            repositorio_familia.clone(),
+            repositorio_usuario.clone(),
+            servico_auditoria.clone(),
+        );
+        let solicitacao_retorno = CasoDeUsoSolicitacaoRetorno::novo(
+            Arc::new(RepositorioSolicitacaoPostgres::novo(pool.clone())),
             repositorio_visita,
             repositorio_familia,
             repositorio_usuario,
@@ -87,6 +98,7 @@ impl EstadoAplicacao {
             familias,
             agendamento,
             registro,
+            solicitacao_retorno,
             servico_jwt,
         })
     }

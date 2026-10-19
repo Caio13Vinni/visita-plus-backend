@@ -144,6 +144,50 @@ impl From<sqlx::Error> for ErroRegistro {
     }
 }
 
+/// Erros do caso de uso de solicitacao de retorno (UC08).
+#[derive(Debug, Error)]
+pub enum ErroSolicitacao {
+    /// Usuario autenticado nao possui permissao para a operacao (RN02/RN19).
+    #[error("perfil sem permissao para esta operacao")]
+    SemPermissao,
+    /// Solicitacao ou visita nao encontrada (ou fora da visibilidade).
+    #[error("registro nao encontrado")]
+    NaoEncontrado,
+    /// Visita informada nao admite solicitacao de retorno.
+    #[error("a visita informada nao admite solicitacao de retorno")]
+    VisitaInvalida,
+    /// Motivo obrigatorio na solicitacao (RN19).
+    #[error("o motivo da solicitacao de retorno e obrigatorio")]
+    MotivoObrigatorio,
+    /// Justificativa obrigatoria na rejeicao do pedido (RN19).
+    #[error("a justificativa da rejeicao e obrigatoria")]
+    JustificativaObrigatoria,
+    /// Ja existe pedido em aberto para a visita (RN19/RN20).
+    #[error("ja existe uma solicitacao de retorno em aberto para esta visita")]
+    SolicitacaoAbertaExistente,
+    /// Pedido ja decidido ou cancelado, fora do estado esperado (RN19/RN20).
+    #[error("a solicitacao nao esta no estado esperado para esta operacao")]
+    EstadoInvalido,
+    /// Agendamento retroativo da visita de retorno (RN09).
+    #[error("a data da visita de retorno nao pode ser retroativa")]
+    DataRetroativa,
+    /// Conflito de horario na agenda do tecnico na aprovacao (RN10).
+    #[error("ja existe visita agendada para o tecnico neste horario")]
+    ConflitoDeHorario,
+    /// Dados de entrada invalidos.
+    #[error("{0}")]
+    DadosInvalidos(String),
+    /// Falha tecnica na camada de banco ou seguranca.
+    #[error("falha tecnica: {0}")]
+    Tecnica(String),
+}
+
+impl From<sqlx::Error> for ErroSolicitacao {
+    fn from(erro: sqlx::Error) -> Self {
+        ErroSolicitacao::Tecnica(erro.to_string())
+    }
+}
+
 /// Identifica se um erro SQL corresponde a violacao de constraint UNIQUE.
 pub fn erro_sql_e_violacao_de_unicidade(erro: &sqlx::Error) -> bool {
     if let sqlx::Error::Database(detalhe) = erro {

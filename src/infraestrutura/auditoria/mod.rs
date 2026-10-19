@@ -29,6 +29,14 @@ pub mod acao {
     pub const REGISTRO_FINALIZADO: &str = "REGISTRO_FINALIZADO";
     /// Complemento imutavel em registro finalizado (UC05/RN16/RN17).
     pub const COMPLEMENTO_REGISTRADO: &str = "COMPLEMENTO_REGISTRADO";
+    /// Solicitacao de retorno criada pelo tecnico (UC08/RN19).
+    pub const RETORNO_SOLICITADO: &str = "RETORNO_SOLICITADO";
+    /// Aprovacao do retorno com agendamento da nova visita (UC08/RN19).
+    pub const RETORNO_AGENDADO: &str = "RETORNO_AGENDADO";
+    /// Rejeicao da solicitacao de retorno, com justificativa (UC08/RN19).
+    pub const RETORNO_REJEITADO: &str = "RETORNO_REJEITADO";
+    /// Cancelamento da solicitacao de retorno pelo solicitante (UC08/RN20).
+    pub const RETORNO_CANCELADO: &str = "RETORNO_CANCELADO";
 }
 
 /// Servico que registra eventos na tabela de auditoria.
@@ -90,5 +98,9 @@ mod testes {
         assert_eq!(acao::REGISTRO_INICIADO, "REGISTRO_INICIADO");
         assert_eq!(acao::REGISTRO_FINALIZADO, "REGISTRO_FINALIZADO");
         assert_eq!(acao::COMPLEMENTO_REGISTRADO, "COMPLEMENTO_REGISTRADO");
+        assert_eq!(acao::RETORNO_SOLICITADO, "RETORNO_SOLICITADO");
+        assert_eq!(acao::RETORNO_AGENDADO, "RETORNO_AGENDADO");
+        assert_eq!(acao::RETORNO_REJEITADO, "RETORNO_REJEITADO");
+        assert_eq!(acao::RETORNO_CANCELADO, "RETORNO_CANCELADO");
     }
 }
