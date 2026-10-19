@@ -211,6 +211,26 @@ impl From<sqlx::Error> for ErroNotificacao {
     }
 }
 
+/// Erros do caso de uso de indicadores operacionais (UC11).
+#[derive(Debug, Error)]
+pub enum ErroIndicadores {
+    /// Apenas coordenadores consultam indicadores (UC11).
+    #[error("perfil sem permissao para esta operacao")]
+    SemPermissao,
+    /// Dados de entrada invalidos.
+    #[error("{0}")]
+    DadosInvalidos(String),
+    /// Falha tecnica na camada de banco ou seguranca.
+    #[error("falha tecnica: {0}")]
+    Tecnica(String),
+}
+
+impl From<sqlx::Error> for ErroIndicadores {
+    fn from(erro: sqlx::Error) -> Self {
+        ErroIndicadores::Tecnica(erro.to_string())
+    }
+}
+
 /// Identifica se um erro SQL corresponde a violacao de constraint UNIQUE.
 pub fn erro_sql_e_violacao_de_unicidade(erro: &sqlx::Error) -> bool {
     if let sqlx::Error::Database(detalhe) = erro {
