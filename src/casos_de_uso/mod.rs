@@ -5,6 +5,7 @@
 pub mod agendamento;
 pub mod autenticacao;
 pub mod familias;
+pub mod indicadores;
 pub mod notificacoes;
 pub mod profissionais;
 pub mod registro;

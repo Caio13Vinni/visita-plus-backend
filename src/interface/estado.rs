@@ -9,12 +9,14 @@ use std::sync::Arc;
 use crate::casos_de_uso::agendamento::CasoDeUsoAgendamento;
 use crate::casos_de_uso::autenticacao::CasoDeUsoAutenticacao;
 use crate::casos_de_uso::familias::CasoDeUsoFamilias;
+use crate::casos_de_uso::indicadores::CasoDeUsoIndicadores;
 use crate::casos_de_uso::notificacoes::{CasoDeUsoNotificacoes, ServicoNotificacoes};
 use crate::casos_de_uso::profissionais::CasoDeUsoProfissionais;
 use crate::casos_de_uso::registro::CasoDeUsoRegistro;
 use crate::casos_de_uso::solicitacao_retorno::CasoDeUsoSolicitacaoRetorno;
 use crate::infraestrutura::auditoria::ServicoAuditoria;
 use crate::infraestrutura::repositorios::familia_repositorio::RepositorioFamiliaPostgres;
+use crate::infraestrutura::repositorios::indicadores_repositorio::RepositorioIndicadoresPostgres;
 use crate::infraestrutura::repositorios::notificacao_repositorio::RepositorioNotificacaoPostgres;
 use crate::infraestrutura::repositorios::registro_repositorio::RepositorioRegistroPostgres;
 use crate::infraestrutura::repositorios::solicitacao_repositorio::RepositorioSolicitacaoPostgres;
@@ -43,6 +45,8 @@ pub struct EstadoAplicacao {
     pub solicitacao_retorno: CasoDeUsoSolicitacaoRetorno,
     /// Caso de uso UC10 (notificacoes) compartilhado pelos handlers.
     pub notificacoes: CasoDeUsoNotificacoes,
+    /// Caso de uso UC11 (indicadores) compartilhado pelos handlers.
+    pub indicadores: CasoDeUsoIndicadores,
     /// Servico de validacao de tokens JWT.
     pub servico_jwt: ServicoJwt,
 }
@@ -101,8 +105,12 @@ impl EstadoAplicacao {
         .com_notificador(servico_notificacoes);
         let notificacoes = CasoDeUsoNotificacoes::novo(
             repositorio_notificacao,
-            repositorio_usuario,
+            repositorio_usuario.clone(),
             servico_auditoria_notificacoes,
+        );
+        let indicadores = CasoDeUsoIndicadores::novo(
+            Arc::new(RepositorioIndicadoresPostgres::novo(pool.clone())),
+            repositorio_usuario,
         );
 
         Arc::new(EstadoAplicacao {
@@ -115,6 +123,7 @@ impl EstadoAplicacao {
             registro,
             solicitacao_retorno,
             notificacoes,
+            indicadores,
             servico_jwt,
         })
     }
