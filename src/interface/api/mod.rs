@@ -13,6 +13,7 @@ pub mod auditoria;
 pub mod autenticacao;
 pub mod extratores;
 pub mod familias;
+pub mod historico;
 pub mod indicadores;
 pub mod manipuladores;
 pub mod modelos;
