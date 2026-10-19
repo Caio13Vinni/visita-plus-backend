@@ -3,6 +3,7 @@
 // =============================================================================
 
 pub mod familia;
+pub mod notificacao;
 pub mod registro_visita;
 pub mod solicitacao_retorno;
 pub mod usuario;

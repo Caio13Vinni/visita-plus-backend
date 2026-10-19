@@ -188,6 +188,29 @@ impl From<sqlx::Error> for ErroSolicitacao {
     }
 }
 
+/// Erros do caso de uso de notificacoes (UC10).
+#[derive(Debug, Error)]
+pub enum ErroNotificacao {
+    /// Usuario autenticado nao possui permissao para a operacao (RN02).
+    #[error("perfil sem permissao para esta operacao")]
+    SemPermissao,
+    /// Notificacao nao encontrada (ou destinada a outro usuario).
+    #[error("notificacao nao encontrada")]
+    NaoEncontrado,
+    /// Dados de entrada invalidos.
+    #[error("{0}")]
+    DadosInvalidos(String),
+    /// Falha tecnica na camada de banco ou seguranca.
+    #[error("falha tecnica: {0}")]
+    Tecnica(String),
+}
+
+impl From<sqlx::Error> for ErroNotificacao {
+    fn from(erro: sqlx::Error) -> Self {
+        ErroNotificacao::Tecnica(erro.to_string())
+    }
+}
+
 /// Identifica se um erro SQL corresponde a violacao de constraint UNIQUE.
 pub fn erro_sql_e_violacao_de_unicidade(erro: &sqlx::Error) -> bool {
     if let sqlx::Error::Database(detalhe) = erro {

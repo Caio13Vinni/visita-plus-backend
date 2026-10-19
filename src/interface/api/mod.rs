@@ -14,6 +14,7 @@ pub mod extratores;
 pub mod familias;
 pub mod manipuladores;
 pub mod modelos;
+pub mod notificacoes;
 pub mod profissionais;
 pub mod registros;
 pub mod rotas;

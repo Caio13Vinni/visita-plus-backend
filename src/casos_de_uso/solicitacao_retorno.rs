@@ -19,6 +19,7 @@
 use std::sync::Arc;
 use uuid::Uuid;
 
+use crate::casos_de_uso::notificacoes::ServicoNotificacoes;
 use crate::dominio::entidades::familia::Familia;
 use crate::dominio::entidades::solicitacao_retorno::{AprovacaoRetorno, SolicitacaoRetorno};
 use crate::dominio::entidades::usuario::Usuario;
@@ -50,6 +51,7 @@ pub struct CasoDeUsoSolicitacaoRetorno {
     repositorio_familia: Arc<dyn RepositorioFamilia>,
     repositorio_usuario: Arc<dyn RepositorioUsuario>,
     auditoria: ServicoAuditoria,
+    notificador: Option<ServicoNotificacoes>,
 }
 
 impl CasoDeUsoSolicitacaoRetorno {
@@ -67,7 +69,14 @@ impl CasoDeUsoSolicitacaoRetorno {
             repositorio_familia,
             repositorio_usuario,
             auditoria,
+            notificador: None,
         }
+    }
+
+    /// Habilita o envio de notificacoes genericas (UC10/RN21).
+    pub fn com_notificador(mut self, notificador: ServicoNotificacoes) -> Self {
+        self.notificador = Some(notificador);
+        self
     }
 
     /// Solicita retorno para uma visita realizada (RN19).
@@ -136,6 +145,23 @@ impl CasoDeUsoSolicitacaoRetorno {
                 None,
             )
             .await;
+
+        if let Some(notificador) = &self.notificador
+            && let Ok(Some(familia)) = self
+                .repositorio_familia
+                .buscar_por_id(visita.id_familia)
+                .await
+            && let Ok(usuarios) = self
+                .repositorio_usuario
+                .listar(Some(familia.id_unidade))
+                .await
+        {
+            for usuario in usuarios {
+                if usuario.perfil == PerfilUsuario::Coordenador && usuario.esta_ativo() {
+                    let _ = notificador.avisar_retorno_solicitado(usuario.id).await;
+                }
+            }
+        }
 
         Ok(criada)
     }
@@ -242,6 +268,12 @@ impl CasoDeUsoSolicitacaoRetorno {
             )
             .await;
 
+        if let Some(notificador) = &self.notificador {
+            let _ = notificador
+                .avisar_retorno_aprovado(solicitacao.solicitado_por)
+                .await;
+        }
+
         let atualizada = self
             .repositorio_solicitacao
             .buscar_por_id(solicitacao.id)
@@ -309,6 +341,12 @@ impl CasoDeUsoSolicitacaoRetorno {
                 None,
             )
             .await;
+
+        if let Some(notificador) = &self.notificador {
+            let _ = notificador
+                .avisar_retorno_rejeitado(solicitacao.solicitado_por)
+                .await;
+        }
 
         self.repositorio_solicitacao
             .buscar_por_id(solicitacao.id)

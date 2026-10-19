@@ -3,6 +3,7 @@
 // =============================================================================
 
 pub mod familia_repositorio;
+pub mod notificacao_repositorio;
 pub mod registro_repositorio;
 pub mod solicitacao_repositorio;
 pub mod usuario_repositorio;

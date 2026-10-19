@@ -14,6 +14,7 @@
 use std::sync::Arc;
 use uuid::Uuid;
 
+use crate::casos_de_uso::notificacoes::ServicoNotificacoes;
 use crate::dominio::entidades::usuario::Usuario;
 use crate::dominio::entidades::visita::{CadastroVisita, ReagendamentoVisita, Visita};
 use crate::dominio::enums::{PerfilUsuario, StatusFamilia, StatusUsuario, StatusVisita};
@@ -30,6 +31,7 @@ pub struct CasoDeUsoAgendamento {
     repositorio_familia: Arc<dyn RepositorioFamilia>,
     repositorio_usuario: Arc<dyn RepositorioUsuario>,
     auditoria: ServicoAuditoria,
+    notificador: Option<ServicoNotificacoes>,
 }
 
 impl CasoDeUsoAgendamento {
@@ -45,7 +47,14 @@ impl CasoDeUsoAgendamento {
             repositorio_familia,
             repositorio_usuario,
             auditoria,
+            notificador: None,
         }
+    }
+
+    /// Habilita o envio de notificacoes genericas aos tecnicos (UC10/RN21).
+    pub fn com_notificador(mut self, notificador: ServicoNotificacoes) -> Self {
+        self.notificador = Some(notificador);
+        self
     }
 
     /// Agenda uma nova visita na agenda de um tecnico.
@@ -127,6 +136,10 @@ impl CasoDeUsoAgendamento {
             )
             .await;
 
+        if let Some(notificador) = &self.notificador {
+            let _ = notificador.avisar_nova_visita(criada.id_tecnico).await;
+        }
+
         Ok(criada)
     }
 
@@ -173,6 +186,10 @@ impl CasoDeUsoAgendamento {
                 None,
             )
             .await;
+
+        if let Some(notificador) = &self.notificador {
+            let _ = notificador.avisar_cancelamento(visita.id_tecnico).await;
+        }
 
         self.repositorio_visita
             .buscar_por_id(id_visita)
@@ -280,6 +297,10 @@ impl CasoDeUsoAgendamento {
                 None,
             )
             .await;
+
+        if let Some(notificador) = &self.notificador {
+            let _ = notificador.avisar_mudanca_agenda(novo_tecnico).await;
+        }
 
         self.repositorio_visita
             .buscar_por_id(id_visita)

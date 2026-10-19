@@ -4,7 +4,7 @@ use axum::Router;
 use std::sync::Arc;
 
 use crate::interface::api::{
-    autenticacao, familias, profissionais, registros, solicitacoes, visitas,
+    autenticacao, familias, notificacoes, profissionais, registros, solicitacoes, visitas,
 };
 use crate::interface::estado::EstadoAplicacao;
 
@@ -17,4 +17,5 @@ pub fn construir_rotas() -> Router<Arc<EstadoAplicacao>> {
         .nest("/visitas", visitas::construir_rotas())
         .nest("/registros", registros::construir_rotas())
         .nest("/solicitacoes-retorno", solicitacoes::construir_rotas())
+        .nest("/notificacoes", notificacoes::construir_rotas())
 }
