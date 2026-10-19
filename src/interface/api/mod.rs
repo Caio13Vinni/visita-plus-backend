@@ -17,6 +17,7 @@ pub mod modelos;
 pub mod profissionais;
 pub mod registros;
 pub mod rotas;
+pub mod solicitacoes;
 pub mod visitas;
 
 /// Constroi o roteador raiz da API com todos os modulos registrados.

@@ -7,3 +7,4 @@ pub mod autenticacao;
 pub mod familias;
 pub mod profissionais;
 pub mod registro;
+pub mod solicitacao_retorno;

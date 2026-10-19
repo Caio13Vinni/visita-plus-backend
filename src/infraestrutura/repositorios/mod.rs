@@ -4,5 +4,6 @@
 
 pub mod familia_repositorio;
 pub mod registro_repositorio;
+pub mod solicitacao_repositorio;
 pub mod usuario_repositorio;
 pub mod visita_repositorio;

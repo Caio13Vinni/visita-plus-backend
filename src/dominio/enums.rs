@@ -169,6 +169,50 @@ impl ResultadoRegistro {
     }
 }
 
+/// Status do pedido de retorno (UC08 / RN19, RN20).
+/// Os nomes espelham os valores exatos do ENUM do banco (MER).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, serde::Serialize, serde::Deserialize)]
+#[sqlx(type_name = "status_solicitacao", rename_all = "PascalCase")]
+pub enum StatusSolicitacao {
+    /// Pendente: aguardando decisao do coordenador (RN19).
+    Pendente,
+    /// Aprovada: decisao favoravel ainda sem visita vinculada (RN20).
+    Aprovada,
+    /// Rejeitada: recusada pelo coordenador, com justificativa (RN19).
+    Rejeitada,
+    /// Cancelada: retirada pelo solicitante antes da decisao (RN20).
+    Cancelada,
+    /// Agendada: aprovada e ja com nova visita programada (RN19/RN20).
+    Agendada,
+}
+
+impl StatusSolicitacao {
+    /// Retorna o nome legivel do status (valor do banco).
+    pub fn como_str(self) -> &'static str {
+        match self {
+            StatusSolicitacao::Pendente => "Pendente",
+            StatusSolicitacao::Aprovada => "Aprovada",
+            StatusSolicitacao::Rejeitada => "Rejeitada",
+            StatusSolicitacao::Cancelada => "Cancelada",
+            StatusSolicitacao::Agendada => "Agendada",
+        }
+    }
+
+    /// Indica se o pedido ainda aguarda decisao do coordenador (RN19).
+    pub fn pode_ser_decidida(self) -> bool {
+        self == StatusSolicitacao::Pendente
+    }
+
+    /// Indica se o pedido permanece em aberto (impede novo pedido para a
+    /// mesma visita — RN19/RN20).
+    pub fn esta_aberta(self) -> bool {
+        matches!(
+            self,
+            StatusSolicitacao::Pendente | StatusSolicitacao::Aprovada | StatusSolicitacao::Agendada
+        )
+    }
+}
+
 #[cfg(test)]
 mod testes {
     use super::*;
@@ -218,5 +262,32 @@ mod testes {
         assert_eq!(ResultadoRegistro::NaoRealizada.como_str(), "Não realizada");
         assert_eq!(StatusRegistro::Rascunho.como_str(), "Rascunho");
         assert_eq!(StatusRegistro::Finalizado.como_str(), "Finalizado");
+    }
+
+    #[test]
+    fn status_solicitacao_espelha_valores_do_banco() {
+        assert_eq!(StatusSolicitacao::Pendente.como_str(), "Pendente");
+        assert_eq!(StatusSolicitacao::Aprovada.como_str(), "Aprovada");
+        assert_eq!(StatusSolicitacao::Rejeitada.como_str(), "Rejeitada");
+        assert_eq!(StatusSolicitacao::Cancelada.como_str(), "Cancelada");
+        assert_eq!(StatusSolicitacao::Agendada.como_str(), "Agendada");
+    }
+
+    #[test]
+    fn somente_pendente_pode_ser_decidida() {
+        assert!(StatusSolicitacao::Pendente.pode_ser_decidida());
+        assert!(!StatusSolicitacao::Aprovada.pode_ser_decidida());
+        assert!(!StatusSolicitacao::Rejeitada.pode_ser_decidida());
+        assert!(!StatusSolicitacao::Cancelada.pode_ser_decidida());
+        assert!(!StatusSolicitacao::Agendada.pode_ser_decidida());
+    }
+
+    #[test]
+    fn status_abertos_bloqueiam_novo_pedido_para_a_mesma_visita() {
+        assert!(StatusSolicitacao::Pendente.esta_aberta());
+        assert!(StatusSolicitacao::Aprovada.esta_aberta());
+        assert!(StatusSolicitacao::Agendada.esta_aberta());
+        assert!(!StatusSolicitacao::Rejeitada.esta_aberta());
+        assert!(!StatusSolicitacao::Cancelada.esta_aberta());
     }
 }
