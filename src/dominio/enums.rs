@@ -213,6 +213,30 @@ impl StatusSolicitacao {
     }
 }
 
+/// Tipo da notificacao (UC10 / RN21).
+/// Os nomes espelham os valores exatos do ENUM do banco (MER).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, serde::Serialize, serde::Deserialize)]
+#[sqlx(type_name = "tipo_notificacao", rename_all = "PascalCase")]
+pub enum TipoNotificacao {
+    /// Lembrete de agenda (ex.: nova visita agendada).
+    Lembrete,
+    /// Aviso de mudanca (ex.: reagendamento, cancelamento, retorno).
+    Aviso,
+    /// Mensagem generica do sistema.
+    Sistema,
+}
+
+impl TipoNotificacao {
+    /// Retorna o nome legivel do tipo (valor do banco).
+    pub fn como_str(self) -> &'static str {
+        match self {
+            TipoNotificacao::Lembrete => "Lembrete",
+            TipoNotificacao::Aviso => "Aviso",
+            TipoNotificacao::Sistema => "Sistema",
+        }
+    }
+}
+
 #[cfg(test)]
 mod testes {
     use super::*;
@@ -289,5 +313,12 @@ mod testes {
         assert!(StatusSolicitacao::Agendada.esta_aberta());
         assert!(!StatusSolicitacao::Rejeitada.esta_aberta());
         assert!(!StatusSolicitacao::Cancelada.esta_aberta());
+    }
+
+    #[test]
+    fn tipo_notificacao_espelha_valores_do_banco() {
+        assert_eq!(TipoNotificacao::Lembrete.como_str(), "Lembrete");
+        assert_eq!(TipoNotificacao::Aviso.como_str(), "Aviso");
+        assert_eq!(TipoNotificacao::Sistema.como_str(), "Sistema");
     }
 }

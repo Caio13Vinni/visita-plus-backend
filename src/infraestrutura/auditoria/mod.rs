@@ -37,6 +37,8 @@ pub mod acao {
     pub const RETORNO_REJEITADO: &str = "RETORNO_REJEITADO";
     /// Cancelamento da solicitacao de retorno pelo solicitante (UC08/RN20).
     pub const RETORNO_CANCELADO: &str = "RETORNO_CANCELADO";
+    /// Tentativa de abrir notificacao de outro usuario (UC10/RN22).
+    pub const NOTIFICACAO_ACESSO_NEGADO: &str = "NOTIFICACAO_ACESSO_NEGADO";
 }
 
 /// Servico que registra eventos na tabela de auditoria.
@@ -102,5 +104,6 @@ mod testes {
         assert_eq!(acao::RETORNO_AGENDADO, "RETORNO_AGENDADO");
         assert_eq!(acao::RETORNO_REJEITADO, "RETORNO_REJEITADO");
         assert_eq!(acao::RETORNO_CANCELADO, "RETORNO_CANCELADO");
+        assert_eq!(acao::NOTIFICACAO_ACESSO_NEGADO, "NOTIFICACAO_ACESSO_NEGADO");
     }
 }

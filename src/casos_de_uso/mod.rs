@@ -5,6 +5,7 @@
 pub mod agendamento;
 pub mod autenticacao;
 pub mod familias;
+pub mod notificacoes;
 pub mod profissionais;
 pub mod registro;
 pub mod solicitacao_retorno;
