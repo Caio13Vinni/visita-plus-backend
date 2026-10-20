@@ -263,3 +263,26 @@ pub fn erro_sql_e_violacao_de_unicidade(erro: &sqlx::Error) -> bool {
         false
     }
 }
+
+/// Erros do caso de uso de consulta ao historico (UC09).
+#[derive(Debug, Error)]
+pub enum ErroHistorico {
+    /// Usuario autenticado nao possui permissao para a operacao (RN02).
+    #[error("perfil sem permissao para esta operacao")]
+    SemPermissao,
+    /// Visita nao encontrada (ou fora da visibilidade do perfil).
+    #[error("registro nao encontrado")]
+    NaoEncontrado,
+    /// Dados de entrada invalidos.
+    #[error("{0}")]
+    DadosInvalidos(String),
+    /// Falha tecnica na camada de banco ou seguranca.
+    #[error("falha tecnica: {0}")]
+    Tecnica(String),
+}
+
+impl From<sqlx::Error> for ErroHistorico {
+    fn from(erro: sqlx::Error) -> Self {
+        ErroHistorico::Tecnica(erro.to_string())
+    }
+}

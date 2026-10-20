@@ -10,6 +10,7 @@ use crate::casos_de_uso::agendamento::CasoDeUsoAgendamento;
 use crate::casos_de_uso::auditoria::CasoDeUsoAuditoria;
 use crate::casos_de_uso::autenticacao::CasoDeUsoAutenticacao;
 use crate::casos_de_uso::familias::CasoDeUsoFamilias;
+use crate::casos_de_uso::historico::CasoDeUsoHistorico;
 use crate::casos_de_uso::indicadores::CasoDeUsoIndicadores;
 use crate::casos_de_uso::notificacoes::{CasoDeUsoNotificacoes, ServicoNotificacoes};
 use crate::casos_de_uso::profissionais::CasoDeUsoProfissionais;
@@ -45,6 +46,8 @@ pub struct EstadoAplicacao {
     pub registro: CasoDeUsoRegistro,
     /// Caso de uso UC08 (solicitacao de retorno) compartilhado pelos handlers.
     pub solicitacao_retorno: CasoDeUsoSolicitacaoRetorno,
+    /// Caso de uso UC09 (consulta ao historico) compartilhado pelos handlers.
+    pub historico: CasoDeUsoHistorico,
     /// Caso de uso UC10 (notificacoes) compartilhado pelos handlers.
     pub notificacoes: CasoDeUsoNotificacoes,
     /// Caso de uso UC11 (indicadores) compartilhado pelos handlers.
@@ -101,12 +104,19 @@ impl EstadoAplicacao {
         );
         let solicitacao_retorno = CasoDeUsoSolicitacaoRetorno::novo(
             Arc::new(RepositorioSolicitacaoPostgres::novo(pool.clone())),
-            repositorio_visita,
-            repositorio_familia,
+            repositorio_visita.clone(),
+            repositorio_familia.clone(),
             repositorio_usuario.clone(),
-            servico_auditoria,
+            servico_auditoria.clone(),
         )
         .com_notificador(servico_notificacoes);
+        let historico = CasoDeUsoHistorico::novo(
+            repositorio_visita,
+            repositorio_familia,
+            Arc::new(RepositorioRegistroPostgres::novo(pool.clone())),
+            repositorio_usuario.clone(),
+            servico_auditoria,
+        );
         let notificacoes = CasoDeUsoNotificacoes::novo(
             repositorio_notificacao,
             repositorio_usuario.clone(),
@@ -116,10 +126,10 @@ impl EstadoAplicacao {
             Arc::new(RepositorioIndicadoresPostgres::novo(pool.clone())),
             repositorio_usuario.clone(),
         );
-        let auditoria_uc = CasoDeUsoAuditoria::novo(
+        let auditoria = CasoDeUsoAuditoria::novo(
             Arc::new(RepositorioAuditoriaPostgres::novo(pool.clone())),
             repositorio_usuario,
-            servico_auditoria_notificacoes.clone(),
+            servico_auditoria_notificacoes,
         );
 
         Arc::new(EstadoAplicacao {
@@ -131,9 +141,10 @@ impl EstadoAplicacao {
             agendamento,
             registro,
             solicitacao_retorno,
+            historico,
             notificacoes,
             indicadores,
-            auditoria: auditoria_uc,
+            auditoria,
             servico_jwt,
         })
     }

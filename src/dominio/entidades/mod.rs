@@ -4,6 +4,7 @@
 
 pub mod auditoria;
 pub mod familia;
+pub mod historico;
 pub mod indicadores;
 pub mod notificacao;
 pub mod registro_visita;

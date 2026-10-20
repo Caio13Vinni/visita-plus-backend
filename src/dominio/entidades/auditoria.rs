@@ -20,7 +20,6 @@ pub struct EventoAuditoria {
     pub descricao: Option<String>,
     pub data_hora: DateTime<Utc>,
 }
-
 /// Filtros da consulta de auditoria (UC12): periodo, usuario, acao ou item.
 #[derive(Debug, Clone, Default)]
 pub struct FiltroAuditoria {
