@@ -127,6 +127,144 @@ impl StatusVisita {
     }
 }
 
+/// Status do registro da visita (UC05 / RN12).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, serde::Serialize, serde::Deserialize)]
+#[sqlx(type_name = "status_registro", rename_all = "PascalCase")]
+pub enum StatusRegistro {
+    /// Rascunho: registro em edicao pelo tecnico (RN12).
+    Rascunho,
+    /// Finalizado: registro fechado e imutavel (RN16).
+    Finalizado,
+}
+
+impl StatusRegistro {
+    /// Retorna o nome legivel do status.
+    pub fn como_str(self) -> &'static str {
+        match self {
+            StatusRegistro::Rascunho => "Rascunho",
+            StatusRegistro::Finalizado => "Finalizado",
+        }
+    }
+}
+
+/// Resultado da tentativa de visita (UC05 / RN13, RN14).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, serde::Serialize, serde::Deserialize)]
+#[sqlx(type_name = "resultado_registro", rename_all = "PascalCase")]
+pub enum ResultadoRegistro {
+    /// Visita realizada com sucesso.
+    Realizada,
+    /// Visita tentada, mas nao realizada (exige motivo — RN14).
+    #[sqlx(rename = "Não realizada")]
+    #[serde(rename = "Não realizada")]
+    NaoRealizada,
+}
+
+impl ResultadoRegistro {
+    /// Retorna o nome legivel do resultado (valor do banco).
+    pub fn como_str(self) -> &'static str {
+        match self {
+            ResultadoRegistro::Realizada => "Realizada",
+            ResultadoRegistro::NaoRealizada => "Não realizada",
+        }
+    }
+}
+
+/// Status do pedido de retorno (UC08 / RN19, RN20).
+/// Os nomes espelham os valores exatos do ENUM do banco (MER).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, serde::Serialize, serde::Deserialize)]
+#[sqlx(type_name = "status_solicitacao", rename_all = "PascalCase")]
+pub enum StatusSolicitacao {
+    /// Pendente: aguardando decisao do coordenador (RN19).
+    Pendente,
+    /// Aprovada: decisao favoravel ainda sem visita vinculada (RN20).
+    Aprovada,
+    /// Rejeitada: recusada pelo coordenador, com justificativa (RN19).
+    Rejeitada,
+    /// Cancelada: retirada pelo solicitante antes da decisao (RN20).
+    Cancelada,
+    /// Agendada: aprovada e ja com nova visita programada (RN19/RN20).
+    Agendada,
+}
+
+impl StatusSolicitacao {
+    /// Retorna o nome legivel do status (valor do banco).
+    pub fn como_str(self) -> &'static str {
+        match self {
+            StatusSolicitacao::Pendente => "Pendente",
+            StatusSolicitacao::Aprovada => "Aprovada",
+            StatusSolicitacao::Rejeitada => "Rejeitada",
+            StatusSolicitacao::Cancelada => "Cancelada",
+            StatusSolicitacao::Agendada => "Agendada",
+        }
+    }
+
+    /// Indica se o pedido ainda aguarda decisao do coordenador (RN19).
+    pub fn pode_ser_decidida(self) -> bool {
+        self == StatusSolicitacao::Pendente
+    }
+
+    /// Indica se o pedido permanece em aberto (impede novo pedido para a
+    /// mesma visita — RN19/RN20).
+    pub fn esta_aberta(self) -> bool {
+        matches!(
+            self,
+            StatusSolicitacao::Pendente | StatusSolicitacao::Aprovada | StatusSolicitacao::Agendada
+        )
+    }
+}
+
+/// Tipo da notificacao (UC10 / RN21).
+/// Os nomes espelham os valores exatos do ENUM do banco (MER).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, serde::Serialize, serde::Deserialize)]
+#[sqlx(type_name = "tipo_notificacao", rename_all = "PascalCase")]
+pub enum TipoNotificacao {
+    /// Lembrete de agenda (ex.: nova visita agendada).
+    Lembrete,
+    /// Aviso de mudanca (ex.: reagendamento, cancelamento, retorno).
+    Aviso,
+    /// Mensagem generica do sistema.
+    Sistema,
+}
+
+impl TipoNotificacao {
+    /// Retorna o nome legivel do tipo (valor do banco).
+    pub fn como_str(self) -> &'static str {
+        match self {
+            TipoNotificacao::Lembrete => "Lembrete",
+            TipoNotificacao::Aviso => "Aviso",
+            TipoNotificacao::Sistema => "Sistema",
+        }
+    }
+}
+
+/// Status do encaminhamento gerado na visita (UC06/RF17).
+/// Os nomes espelham os valores exatos do ENUM do banco (MER).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, serde::Serialize, serde::Deserialize)]
+#[sqlx(type_name = "status_encaminhamento", rename_all = "PascalCase")]
+pub enum StatusEncaminhamento {
+    /// Aberto: encaminhamento registrado e pendente de conclusao.
+    Aberto,
+    /// Concluido: encaminhamento atendido (valor do banco: 'Concluído').
+    #[sqlx(rename = "Concluído")]
+    #[serde(rename = "Concluído")]
+    Concluido,
+}
+
+impl StatusEncaminhamento {
+    /// Retorna o nome legivel do status (valor do banco).
+    pub fn como_str(self) -> &'static str {
+        match self {
+            StatusEncaminhamento::Aberto => "Aberto",
+            StatusEncaminhamento::Concluido => "Concluído",
+        }
+    }
+
+    /// Indica se o encaminhamento ainda pode ser concluido.
+    pub fn pode_ser_concluido(self) -> bool {
+        self == StatusEncaminhamento::Aberto
+    }
+}
+
 #[cfg(test)]
 mod testes {
     use super::*;
@@ -168,5 +306,55 @@ mod testes {
         assert!(!StatusVisita::Realizada.pode_ser_alterada());
         assert!(!StatusVisita::NaoRealizada.pode_ser_alterada());
         assert!(!StatusVisita::Cancelada.pode_ser_alterada());
+    }
+
+    #[test]
+    fn resultado_registro_espelha_valores_acentuados_do_banco() {
+        assert_eq!(ResultadoRegistro::Realizada.como_str(), "Realizada");
+        assert_eq!(ResultadoRegistro::NaoRealizada.como_str(), "Não realizada");
+        assert_eq!(StatusRegistro::Rascunho.como_str(), "Rascunho");
+        assert_eq!(StatusRegistro::Finalizado.como_str(), "Finalizado");
+    }
+
+    #[test]
+    fn status_solicitacao_espelha_valores_do_banco() {
+        assert_eq!(StatusSolicitacao::Pendente.como_str(), "Pendente");
+        assert_eq!(StatusSolicitacao::Aprovada.como_str(), "Aprovada");
+        assert_eq!(StatusSolicitacao::Rejeitada.como_str(), "Rejeitada");
+        assert_eq!(StatusSolicitacao::Cancelada.como_str(), "Cancelada");
+        assert_eq!(StatusSolicitacao::Agendada.como_str(), "Agendada");
+    }
+
+    #[test]
+    fn somente_pendente_pode_ser_decidida() {
+        assert!(StatusSolicitacao::Pendente.pode_ser_decidida());
+        assert!(!StatusSolicitacao::Aprovada.pode_ser_decidida());
+        assert!(!StatusSolicitacao::Rejeitada.pode_ser_decidida());
+        assert!(!StatusSolicitacao::Cancelada.pode_ser_decidida());
+        assert!(!StatusSolicitacao::Agendada.pode_ser_decidida());
+    }
+
+    #[test]
+    fn status_abertos_bloqueiam_novo_pedido_para_a_mesma_visita() {
+        assert!(StatusSolicitacao::Pendente.esta_aberta());
+        assert!(StatusSolicitacao::Aprovada.esta_aberta());
+        assert!(StatusSolicitacao::Agendada.esta_aberta());
+        assert!(!StatusSolicitacao::Rejeitada.esta_aberta());
+        assert!(!StatusSolicitacao::Cancelada.esta_aberta());
+    }
+
+    #[test]
+    fn tipo_notificacao_espelha_valores_do_banco() {
+        assert_eq!(TipoNotificacao::Lembrete.como_str(), "Lembrete");
+        assert_eq!(TipoNotificacao::Aviso.como_str(), "Aviso");
+        assert_eq!(TipoNotificacao::Sistema.como_str(), "Sistema");
+    }
+
+    #[test]
+    fn status_encaminhamento_espelha_valores_do_banco() {
+        assert_eq!(StatusEncaminhamento::Aberto.como_str(), "Aberto");
+        assert_eq!(StatusEncaminhamento::Concluido.como_str(), "Concluído");
+        assert!(StatusEncaminhamento::Aberto.pode_ser_concluido());
+        assert!(!StatusEncaminhamento::Concluido.pode_ser_concluido());
     }
 }
