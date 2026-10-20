@@ -3,6 +3,7 @@
 // =============================================================================
 
 pub mod agendamento;
+pub mod auditoria;
 pub mod autenticacao;
 pub mod familias;
 pub mod indicadores;

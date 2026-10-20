@@ -2,6 +2,7 @@
 // Repositorios de dados (adaptadores da camada de banco)
 // =============================================================================
 
+pub mod auditoria_repositorio;
 pub mod familia_repositorio;
 pub mod indicadores_repositorio;
 pub mod notificacao_repositorio;

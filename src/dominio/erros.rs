@@ -231,6 +231,26 @@ impl From<sqlx::Error> for ErroIndicadores {
     }
 }
 
+/// Erros do caso de uso de consulta a auditoria (UC12).
+#[derive(Debug, Error)]
+pub enum ErroAuditoria {
+    /// Apenas coordenadores consultam a auditoria (UC12).
+    #[error("perfil sem permissao para esta operacao")]
+    SemPermissao,
+    /// Dados de entrada invalidos.
+    #[error("{0}")]
+    DadosInvalidos(String),
+    /// Falha tecnica na camada de banco ou seguranca.
+    #[error("falha tecnica: {0}")]
+    Tecnica(String),
+}
+
+impl From<sqlx::Error> for ErroAuditoria {
+    fn from(erro: sqlx::Error) -> Self {
+        ErroAuditoria::Tecnica(erro.to_string())
+    }
+}
+
 /// Identifica se um erro SQL corresponde a violacao de constraint UNIQUE.
 pub fn erro_sql_e_violacao_de_unicidade(erro: &sqlx::Error) -> bool {
     if let sqlx::Error::Database(detalhe) = erro {

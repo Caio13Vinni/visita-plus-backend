@@ -39,6 +39,9 @@ pub mod acao {
     pub const RETORNO_CANCELADO: &str = "RETORNO_CANCELADO";
     /// Tentativa de abrir notificacao de outro usuario (UC10/RN22).
     pub const NOTIFICACAO_ACESSO_NEGADO: &str = "NOTIFICACAO_ACESSO_NEGADO";
+    /// Tentativa de consulta a auditoria por perfil nao coordenador
+    /// (UC12/RN22).
+    pub const AUDITORIA_ACESSO_NEGADO: &str = "AUDITORIA_ACESSO_NEGADO";
 }
 
 /// Servico que registra eventos na tabela de auditoria.
@@ -105,5 +108,6 @@ mod testes {
         assert_eq!(acao::RETORNO_REJEITADO, "RETORNO_REJEITADO");
         assert_eq!(acao::RETORNO_CANCELADO, "RETORNO_CANCELADO");
         assert_eq!(acao::NOTIFICACAO_ACESSO_NEGADO, "NOTIFICACAO_ACESSO_NEGADO");
+        assert_eq!(acao::AUDITORIA_ACESSO_NEGADO, "AUDITORIA_ACESSO_NEGADO");
     }
 }

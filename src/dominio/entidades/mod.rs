@@ -2,6 +2,7 @@
 // Entidades de dominio
 // =============================================================================
 
+pub mod auditoria;
 pub mod familia;
 pub mod indicadores;
 pub mod notificacao;
