@@ -104,7 +104,10 @@ impl CasoDeUsoEncaminhamentos {
             criado_em: chrono::Utc::now(),
         };
 
-        let criado = self.repositorio_encaminhamento.criar(&encaminhamento).await?;
+        let criado = self
+            .repositorio_encaminhamento
+            .criar(&encaminhamento)
+            .await?;
 
         let _ = self
             .auditoria
@@ -175,9 +178,9 @@ impl CasoDeUsoEncaminhamentos {
             .ok_or(ErroEncaminhamento::NaoEncontrado)?;
 
         let permitido = match logado.perfil {
-            PerfilUsuario::Coordenador => self
-                .familia_na_unidade(&logado, visita.id_familia)
-                .await?,
+            PerfilUsuario::Coordenador => {
+                self.familia_na_unidade(&logado, visita.id_familia).await?
+            }
             PerfilUsuario::Tecnico => visita.id_tecnico == logado.id,
         };
 
@@ -240,10 +243,7 @@ impl CasoDeUsoEncaminhamentos {
         logado: &Usuario,
         id_familia: Uuid,
     ) -> Result<bool, ErroEncaminhamento> {
-        let familia = self
-            .repositorio_familia
-            .buscar_por_id(id_familia)
-            .await?;
+        let familia = self.repositorio_familia.buscar_por_id(id_familia).await?;
         Ok(familia
             .map(|f| f.id_unidade == logado.id_unidade)
             .unwrap_or(false))

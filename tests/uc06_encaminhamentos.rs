@@ -90,7 +90,12 @@ async fn cenario_com_visita_em_andamento(pool: &sqlx::PgPool) -> Cenario {
         false,
     )
     .await;
-    let familia = criar_familia(pool, coordenador.id_unidade, &format!("FAM-{}", sufixo_unico())).await;
+    let familia = criar_familia(
+        pool,
+        coordenador.id_unidade,
+        &format!("FAM-{}", sufixo_unico()),
+    )
+    .await;
 
     let suites = montar(pool);
     let visita = suites
@@ -189,7 +194,11 @@ async fn permite_multiplos_encaminhamentos_para_a_mesma_visita() {
         .expect("lista de encaminhamentos");
 
     assert_eq!(lista.len(), 2, "RF17: um ou mais por visita");
-    assert!(lista.iter().all(|e| e.status == StatusEncaminhamento::Aberto));
+    assert!(
+        lista
+            .iter()
+            .all(|e| e.status == StatusEncaminhamento::Aberto)
+    );
 }
 
 #[tokio::test]
@@ -231,7 +240,12 @@ async fn visita_nao_iniciada_nao_admite_encaminhamento() {
         false,
     )
     .await;
-    let familia = criar_familia(&pool, coordenador.id_unidade, &format!("FAM-{}", sufixo_unico())).await;
+    let familia = criar_familia(
+        &pool,
+        coordenador.id_unidade,
+        &format!("FAM-{}", sufixo_unico()),
+    )
+    .await;
 
     let suites = montar(&pool);
     let visita = suites
@@ -267,12 +281,7 @@ async fn coordenador_nao_registra_encaminhamento() {
 
     let erro = suites
         .encaminhamentos
-        .registrar_encaminhamento(
-            cenario.coordenador.id,
-            cenario.visita,
-            "CREAS",
-            "Motivo",
-        )
+        .registrar_encaminhamento(cenario.coordenador.id, cenario.visita, "CREAS", "Motivo")
         .await
         .expect_err("coordenador nao registra encaminhamento");
 
@@ -329,12 +338,7 @@ async fn listagem_respeita_a_visibilidade_do_perfil() {
 
     suites
         .encaminhamentos
-        .registrar_encaminhamento(
-            cenario.tecnico.id,
-            cenario.visita,
-            "UBS Central",
-            "Motivo",
-        )
+        .registrar_encaminhamento(cenario.tecnico.id, cenario.visita, "UBS Central", "Motivo")
         .await
         .expect("encaminhamento registrado");
 
@@ -383,12 +387,7 @@ async fn tecnico_conclui_o_proprio_encaminhamento() {
 
     let criado = suites
         .encaminhamentos
-        .registrar_encaminhamento(
-            cenario.tecnico.id,
-            cenario.visita,
-            "UBS Central",
-            "Motivo",
-        )
+        .registrar_encaminhamento(cenario.tecnico.id, cenario.visita, "UBS Central", "Motivo")
         .await
         .expect("encaminhamento registrado");
 
@@ -414,12 +413,7 @@ async fn coordenador_da_unidade_conclui_o_encaminhamento() {
 
     let criado = suites
         .encaminhamentos
-        .registrar_encaminhamento(
-            cenario.tecnico.id,
-            cenario.visita,
-            "CREAS",
-            "Motivo",
-        )
+        .registrar_encaminhamento(cenario.tecnico.id, cenario.visita, "CREAS", "Motivo")
         .await
         .expect("encaminhamento registrado");
 
@@ -440,12 +434,7 @@ async fn encaminhamento_ja_concluido_nao_pode_ser_concluido_novamente() {
 
     let criado = suites
         .encaminhamentos
-        .registrar_encaminhamento(
-            cenario.tecnico.id,
-            cenario.visita,
-            "UBS Central",
-            "Motivo",
-        )
+        .registrar_encaminhamento(cenario.tecnico.id, cenario.visita, "UBS Central", "Motivo")
         .await
         .expect("encaminhamento registrado");
 
@@ -480,12 +469,7 @@ async fn tecnico_alheio_nao_conclui_o_encaminhamento() {
 
     let criado = suites
         .encaminhamentos
-        .registrar_encaminhamento(
-            cenario.tecnico.id,
-            cenario.visita,
-            "UBS Central",
-            "Motivo",
-        )
+        .registrar_encaminhamento(cenario.tecnico.id, cenario.visita, "UBS Central", "Motivo")
         .await
         .expect("encaminhamento registrado");
 

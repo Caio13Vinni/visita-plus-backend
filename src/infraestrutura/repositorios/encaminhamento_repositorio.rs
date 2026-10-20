@@ -75,10 +75,7 @@ impl RepositorioEncaminhamento for RepositorioEncaminhamentoPostgres {
         .map(|linha| linha.map(EncaminhamentoLinha::para_encaminhamento))
     }
 
-    async fn listar_por_visita(
-        &self,
-        id_visita: Uuid,
-    ) -> Result<Vec<Encaminhamento>, sqlx::Error> {
+    async fn listar_por_visita(&self, id_visita: Uuid) -> Result<Vec<Encaminhamento>, sqlx::Error> {
         let linhas = sqlx::query_as::<_, EncaminhamentoLinha>(&format!(
             "SELECT {COLUNAS_ENCAMINHAMENTO} FROM encaminhamento
               WHERE id_visita = $1

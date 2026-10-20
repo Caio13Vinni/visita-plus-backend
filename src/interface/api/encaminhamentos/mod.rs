@@ -24,7 +24,10 @@ use crate::interface::estado::EstadoAplicacao;
 /// Constroi o sub-roteador do modulo de encaminhamentos.
 pub fn construir_rotas() -> Router<Arc<EstadoAplicacao>> {
     Router::new()
-        .route("/", get(listar_encaminhamentos).post(registrar_encaminhamento))
+        .route(
+            "/",
+            get(listar_encaminhamentos).post(registrar_encaminhamento),
+        )
         .route("/{id}/concluir", patch(concluir_encaminhamento))
 }
 
@@ -110,7 +113,10 @@ async fn registrar_encaminhamento(
         .await
         .map_err(mapear_erro_encaminhamento)?;
 
-    Ok((StatusCode::CREATED, Json(RespostaEncaminhamento::from(&criado))))
+    Ok((
+        StatusCode::CREATED,
+        Json(RespostaEncaminhamento::from(&criado)),
+    ))
 }
 
 /// PATCH /encaminhamentos/{id}/concluir — conclui o encaminhamento.
@@ -146,9 +152,10 @@ fn mapear_erro_encaminhamento(erro: ErroEncaminhamento) -> (StatusCode, Json<Err
         }
         ErroEncaminhamento::DestinoObrigatorio
         | ErroEncaminhamento::MotivoObrigatorio
-        | ErroEncaminhamento::DadosInvalidos(_) => {
-            (StatusCode::BAD_REQUEST, Json(ErroApi::nova(erro.to_string())))
-        }
+        | ErroEncaminhamento::DadosInvalidos(_) => (
+            StatusCode::BAD_REQUEST,
+            Json(ErroApi::nova(erro.to_string())),
+        ),
         ErroEncaminhamento::Tecnica(mensagem) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErroApi::nova(mensagem)),
