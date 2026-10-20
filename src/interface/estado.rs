@@ -7,6 +7,7 @@ use std::env;
 use std::sync::Arc;
 
 use crate::casos_de_uso::agendamento::CasoDeUsoAgendamento;
+use crate::casos_de_uso::auditoria::CasoDeUsoAuditoria;
 use crate::casos_de_uso::autenticacao::CasoDeUsoAutenticacao;
 use crate::casos_de_uso::familias::CasoDeUsoFamilias;
 use crate::casos_de_uso::indicadores::CasoDeUsoIndicadores;
@@ -15,6 +16,7 @@ use crate::casos_de_uso::profissionais::CasoDeUsoProfissionais;
 use crate::casos_de_uso::registro::CasoDeUsoRegistro;
 use crate::casos_de_uso::solicitacao_retorno::CasoDeUsoSolicitacaoRetorno;
 use crate::infraestrutura::auditoria::ServicoAuditoria;
+use crate::infraestrutura::repositorios::auditoria_repositorio::RepositorioAuditoriaPostgres;
 use crate::infraestrutura::repositorios::familia_repositorio::RepositorioFamiliaPostgres;
 use crate::infraestrutura::repositorios::indicadores_repositorio::RepositorioIndicadoresPostgres;
 use crate::infraestrutura::repositorios::notificacao_repositorio::RepositorioNotificacaoPostgres;
@@ -47,6 +49,8 @@ pub struct EstadoAplicacao {
     pub notificacoes: CasoDeUsoNotificacoes,
     /// Caso de uso UC11 (indicadores) compartilhado pelos handlers.
     pub indicadores: CasoDeUsoIndicadores,
+    /// Caso de uso UC12 (consulta a auditoria) compartilhado pelos handlers.
+    pub auditoria: CasoDeUsoAuditoria,
     /// Servico de validacao de tokens JWT.
     pub servico_jwt: ServicoJwt,
 }
@@ -106,11 +110,16 @@ impl EstadoAplicacao {
         let notificacoes = CasoDeUsoNotificacoes::novo(
             repositorio_notificacao,
             repositorio_usuario.clone(),
-            servico_auditoria_notificacoes,
+            servico_auditoria_notificacoes.clone(),
         );
         let indicadores = CasoDeUsoIndicadores::novo(
             Arc::new(RepositorioIndicadoresPostgres::novo(pool.clone())),
+            repositorio_usuario.clone(),
+        );
+        let auditoria_uc = CasoDeUsoAuditoria::novo(
+            Arc::new(RepositorioAuditoriaPostgres::novo(pool.clone())),
             repositorio_usuario,
+            servico_auditoria_notificacoes.clone(),
         );
 
         Arc::new(EstadoAplicacao {
@@ -124,6 +133,7 @@ impl EstadoAplicacao {
             solicitacao_retorno,
             notificacoes,
             indicadores,
+            auditoria: auditoria_uc,
             servico_jwt,
         })
     }

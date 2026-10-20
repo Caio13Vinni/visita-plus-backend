@@ -9,6 +9,7 @@ use std::sync::Arc;
 use super::estado::EstadoAplicacao;
 use crate::interface::api::manipuladores::verificar_saude;
 
+pub mod auditoria;
 pub mod autenticacao;
 pub mod extratores;
 pub mod familias;
