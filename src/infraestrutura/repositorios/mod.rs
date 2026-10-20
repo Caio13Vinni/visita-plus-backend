@@ -3,6 +3,7 @@
 // =============================================================================
 
 pub mod auditoria_repositorio;
+pub mod encaminhamento_repositorio;
 pub mod familia_repositorio;
 pub mod indicadores_repositorio;
 pub mod notificacao_repositorio;

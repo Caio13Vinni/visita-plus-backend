@@ -286,3 +286,38 @@ impl From<sqlx::Error> for ErroHistorico {
         ErroHistorico::Tecnica(erro.to_string())
     }
 }
+
+/// Erros do caso de uso de encaminhamentos (UC06/RF17).
+#[derive(Debug, Error)]
+pub enum ErroEncaminhamento {
+    /// Usuario autenticado nao possui permissao para a operacao (RN02/RN05).
+    #[error("perfil sem permissao para esta operacao")]
+    SemPermissao,
+    /// Encaminhamento ou visita nao encontrada (ou fora da visibilidade).
+    #[error("registro nao encontrado")]
+    NaoEncontrado,
+    /// Visita nao admite encaminhamento (nao iniciada ou ja finalizada).
+    #[error("a visita nao admite encaminhamentos no status atual")]
+    VisitaInvalida,
+    /// Destino do encaminhamento e obrigatorio (RF17).
+    #[error("o destino do encaminhamento e obrigatorio")]
+    DestinoObrigatorio,
+    /// Motivo do encaminhamento e obrigatorio (RF17).
+    #[error("o motivo do encaminhamento e obrigatorio")]
+    MotivoObrigatorio,
+    /// Encaminhamento ja concluido, fora do estado esperado.
+    #[error("o encaminhamento nao esta aberto para conclusao")]
+    EstadoInvalido,
+    /// Dados de entrada invalidos.
+    #[error("{0}")]
+    DadosInvalidos(String),
+    /// Falha tecnica na camada de banco ou seguranca.
+    #[error("falha tecnica: {0}")]
+    Tecnica(String),
+}
+
+impl From<sqlx::Error> for ErroEncaminhamento {
+    fn from(erro: sqlx::Error) -> Self {
+        ErroEncaminhamento::Tecnica(erro.to_string())
+    }
+}

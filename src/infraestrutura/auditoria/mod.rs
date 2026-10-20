@@ -46,6 +46,10 @@ pub mod acao {
     pub const AUDITORIA_ACESSO_NEGADO: &str = "AUDITORIA_ACESSO_NEGADO";
     /// Tentativa de acesso a item de historico fora da visibilidade (UC09).
     pub const HISTORICO_ACESSO_NEGADO: &str = "HISTORICO_ACESSO_NEGADO";
+    /// Encaminhamento registrado durante a visita (UC06/RF17).
+    pub const ENCAMINHAMENTO_REGISTRADO: &str = "ENCAMINHAMENTO_REGISTRADO";
+    /// Encaminhamento concluido (UC06/RF17).
+    pub const ENCAMINHAMENTO_CONCLUIDO: &str = "ENCAMINHAMENTO_CONCLUIDO";
 }
 
 /// Servico que registra eventos na tabela de auditoria.
@@ -165,5 +169,7 @@ mod testes {
         assert_eq!(acao::NOTIFICACAO_ACESSO_NEGADO, "NOTIFICACAO_ACESSO_NEGADO");
         assert_eq!(acao::AUDITORIA_ACESSO_NEGADO, "AUDITORIA_ACESSO_NEGADO");
         assert_eq!(acao::HISTORICO_ACESSO_NEGADO, "HISTORICO_ACESSO_NEGADO");
+        assert_eq!(acao::ENCAMINHAMENTO_REGISTRADO, "ENCAMINHAMENTO_REGISTRADO");
+        assert_eq!(acao::ENCAMINHAMENTO_CONCLUIDO, "ENCAMINHAMENTO_CONCLUIDO");
     }
 }

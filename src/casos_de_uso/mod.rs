@@ -5,6 +5,7 @@
 pub mod agendamento;
 pub mod auditoria;
 pub mod autenticacao;
+pub mod encaminhamentos;
 pub mod familias;
 pub mod historico;
 pub mod indicadores;

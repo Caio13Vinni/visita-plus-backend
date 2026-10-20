@@ -237,6 +237,34 @@ impl TipoNotificacao {
     }
 }
 
+/// Status do encaminhamento gerado na visita (UC06/RF17).
+/// Os nomes espelham os valores exatos do ENUM do banco (MER).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, serde::Serialize, serde::Deserialize)]
+#[sqlx(type_name = "status_encaminhamento", rename_all = "PascalCase")]
+pub enum StatusEncaminhamento {
+    /// Aberto: encaminhamento registrado e pendente de conclusao.
+    Aberto,
+    /// Concluido: encaminhamento atendido (valor do banco: 'Concluído').
+    #[sqlx(rename = "Concluído")]
+    #[serde(rename = "Concluído")]
+    Concluido,
+}
+
+impl StatusEncaminhamento {
+    /// Retorna o nome legivel do status (valor do banco).
+    pub fn como_str(self) -> &'static str {
+        match self {
+            StatusEncaminhamento::Aberto => "Aberto",
+            StatusEncaminhamento::Concluido => "Concluído",
+        }
+    }
+
+    /// Indica se o encaminhamento ainda pode ser concluido.
+    pub fn pode_ser_concluido(self) -> bool {
+        self == StatusEncaminhamento::Aberto
+    }
+}
+
 #[cfg(test)]
 mod testes {
     use super::*;
@@ -320,5 +348,13 @@ mod testes {
         assert_eq!(TipoNotificacao::Lembrete.como_str(), "Lembrete");
         assert_eq!(TipoNotificacao::Aviso.como_str(), "Aviso");
         assert_eq!(TipoNotificacao::Sistema.como_str(), "Sistema");
+    }
+
+    #[test]
+    fn status_encaminhamento_espelha_valores_do_banco() {
+        assert_eq!(StatusEncaminhamento::Aberto.como_str(), "Aberto");
+        assert_eq!(StatusEncaminhamento::Concluido.como_str(), "Concluído");
+        assert!(StatusEncaminhamento::Aberto.pode_ser_concluido());
+        assert!(!StatusEncaminhamento::Concluido.pode_ser_concluido());
     }
 }
