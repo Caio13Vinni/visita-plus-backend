@@ -180,3 +180,23 @@ pub async fn criar_familia(pool: &PgPool, id_unidade: Uuid, codigo: &str) -> Uui
     .await
     .expect("falha ao criar familia")
 }
+
+/// Cria uma sessao ativa para o usuario — usado por testes que forjam
+/// tokens JWT diretamente (o extrator de autenticacao exige sessao ativa,
+/// RF04).
+#[allow(dead_code)]
+pub async fn criar_sessao_ativa(pool: &PgPool, id_sessao: Uuid, id_usuario: Uuid) {
+    // Token com valor unico por chamada: a coluna `token_jwt` tem
+    // restricao UNIQUE e os testes rodam em paralelo.
+    let token = format!("token_de_teste_{id_sessao}");
+    sqlx::query(
+        "INSERT INTO sessao (id_sessao, id_usuario, token_jwt, expira_em)
+         VALUES ($1, $2, $3, now() + interval '1 hour')",
+    )
+    .bind(id_sessao)
+    .bind(id_usuario)
+    .bind(token)
+    .execute(pool)
+    .await
+    .expect("falha ao criar sessao de teste");
+}

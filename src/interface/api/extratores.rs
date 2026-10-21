@@ -47,6 +47,20 @@ impl FromRequestParts<Arc<EstadoAplicacao>> for UsuarioAutenticado {
             )
         })?;
 
+        // Sessao server-side: precisa existir, estar ativa e dentro da
+        // validade; renovada por atividade quando proxima da expiracao
+        // (RF04/RNF07).
+        estado
+            .autenticacao
+            .validar_sessao(&claims)
+            .await
+            .map_err(|_| {
+                (
+                    StatusCode::UNAUTHORIZED,
+                    Json(ErroApi::nova("sessao invalida, expirada ou encerrada")),
+                )
+            })?;
+
         Ok(UsuarioAutenticado(claims))
     }
 }

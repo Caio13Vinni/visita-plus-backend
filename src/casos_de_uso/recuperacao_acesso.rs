@@ -20,6 +20,7 @@ use crate::dominio::erros::ErroRecuperacao;
 use crate::infraestrutura::auditoria::ServicoAuditoria;
 use crate::infraestrutura::auditoria::acao;
 use crate::infraestrutura::repositorios::recuperacao_repositorio::RepositorioRecuperacao;
+use crate::infraestrutura::repositorios::sessao_repositorio::RepositorioSessao;
 use crate::infraestrutura::repositorios::usuario_repositorio::RepositorioUsuario;
 use crate::infraestrutura::seguranca::senha;
 
@@ -47,6 +48,7 @@ pub struct SolicitacaoRecuperacao {
 pub struct CasoDeUsoRecuperacaoAcesso {
     repositorio_recuperacao: Arc<dyn RepositorioRecuperacao>,
     repositorio_usuario: Arc<dyn RepositorioUsuario>,
+    repositorio_sessao: Arc<dyn RepositorioSessao>,
     auditoria: ServicoAuditoria,
 }
 
@@ -55,11 +57,13 @@ impl CasoDeUsoRecuperacaoAcesso {
     pub fn novo(
         repositorio_recuperacao: Arc<dyn RepositorioRecuperacao>,
         repositorio_usuario: Arc<dyn RepositorioUsuario>,
+        repositorio_sessao: Arc<dyn RepositorioSessao>,
         auditoria: ServicoAuditoria,
     ) -> Self {
         Self {
             repositorio_recuperacao,
             repositorio_usuario,
+            repositorio_sessao,
             auditoria,
         }
     }
@@ -182,6 +186,13 @@ impl CasoDeUsoRecuperacaoAcesso {
             .await?;
         self.repositorio_usuario
             .trocar_senha(usuario.id, &novo_hash, false)
+            .await?;
+
+        // Redefinicao por recuperacao encerra as sessoes ativas do usuario
+        // (RF04): acessos anteriores nao devem continuar validos apos a
+        // troca da senha fora de uma sessao autenticada.
+        self.repositorio_sessao
+            .encerrar_todas_do_usuario(usuario.id)
             .await?;
 
         let _ = self

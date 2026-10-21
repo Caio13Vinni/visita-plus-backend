@@ -19,6 +19,9 @@ pub enum ErroAutenticacao {
     /// Nova senha nao atende aos criterios minimos.
     #[error("a nova senha deve ter no minimo 8 caracteres")]
     SenhaFraca,
+    /// Sessao encerrada, expirada ou inexistente (RF04/RNF07).
+    #[error("sessao invalida, expirada ou encerrada")]
+    SessaoInvalida,
     /// Usuario/registro nao encontrado.
     #[error("registro nao encontrado")]
     NaoEncontrado,

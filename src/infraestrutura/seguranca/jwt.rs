@@ -26,6 +26,8 @@ pub enum ErroJwt {
 pub struct Claims {
     /// Identificador do usuario autenticado.
     pub sub: Uuid,
+    /// Identificador da sessao vinculada ao token (RF04).
+    pub sid: Uuid,
     /// E-mail do usuario.
     pub email: String,
     /// Perfil de acesso (Coordenador ou Tecnico).
@@ -52,11 +54,13 @@ impl ServicoJwt {
         }
     }
 
-    /// Emite um token JWT assinado para o usuario autenticado.
-    pub fn emitir(&self, usuario: &Usuario) -> Result<String, ErroJwt> {
+    /// Emite um token JWT assinado para o usuario autenticado, vinculado
+    /// a sessao informada (RF04).
+    pub fn emitir(&self, usuario: &Usuario, id_sessao: Uuid) -> Result<String, ErroJwt> {
         let agora = Utc::now();
         let claims = Claims {
             sub: usuario.id,
+            sid: id_sessao,
             email: usuario.email.clone(),
             perfil: usuario.perfil,
             iat: agora.timestamp() as usize,
@@ -69,6 +73,11 @@ impl ServicoJwt {
             &EncodingKey::from_secret(self.segredo.as_bytes()),
         )
         .map_err(|erro| ErroJwt::Emissao(erro.to_string()))
+    }
+
+    /// Janela de expiracao dos tokens (e das sessoes), em minutos.
+    pub fn expiracao_minutos(&self) -> u64 {
+        self.expiracao_minutos
     }
 
     /// Valida a assinatura e a expiracao, devolvendo os claims.
@@ -108,14 +117,18 @@ mod testes {
     }
 
     #[test]
-    fn token_emitido_contem_claims_de_id_email_e_perfil() {
+    fn token_emitido_contem_claims_de_id_sessao_email_e_perfil() {
         let servico = ServicoJwt::novo("segredo_de_teste", 60);
         let usuario = usuario_exemplo();
+        let id_sessao = Uuid::new_v4();
 
-        let token = servico.emitir(&usuario).expect("deve emitir token");
+        let token = servico
+            .emitir(&usuario, id_sessao)
+            .expect("deve emitir token");
         let claims = servico.validar(&token).expect("deve validar token");
 
         assert_eq!(claims.sub, usuario.id);
+        assert_eq!(claims.sid, id_sessao);
         assert_eq!(claims.email, usuario.email);
         assert_eq!(claims.perfil, PerfilUsuario::Tecnico);
         assert!(claims.exp > claims.iat);
@@ -131,7 +144,9 @@ mod testes {
     fn assinatura_de_outro_segredo_e_rejeitada() {
         let emissor = ServicoJwt::novo("segredo_a", 60);
         let validador = ServicoJwt::novo("segredo_b", 60);
-        let token = emissor.emitir(&usuario_exemplo()).expect("deve emitir");
+        let token = emissor
+            .emitir(&usuario_exemplo(), Uuid::new_v4())
+            .expect("deve emitir");
         assert!(validador.validar(&token).is_err());
     }
 }

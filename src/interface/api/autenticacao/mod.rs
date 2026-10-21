@@ -4,6 +4,7 @@
 // POST /api/v1/auth/trocar-senha                 -> troca de senha (primeiro acesso)
 // POST /api/v1/auth/recuperar-senha              -> solicita codigo (RF03, anonimo)
 // POST /api/v1/auth/recuperar-senha/redefinir    -> redefine a senha (RF03, anonimo)
+// POST /api/v1/auth/logout                       -> encerra a sessao atual (RF04)
 // =============================================================================
 
 use axum::extract::State;
@@ -18,7 +19,7 @@ use crate::casos_de_uso::autenticacao::Credenciais;
 use crate::dominio::entidades::usuario::Usuario;
 use crate::dominio::enums::{PerfilUsuario, StatusUsuario};
 use crate::dominio::erros::{ErroAutenticacao, ErroRecuperacao};
-use crate::infraestrutura::seguranca::jwt::{Claims, ServicoJwt};
+use crate::interface::api::extratores::UsuarioAutenticado;
 use crate::interface::api::modelos::ErroApi;
 use crate::interface::estado::EstadoAplicacao;
 
@@ -29,6 +30,7 @@ pub fn construir_rotas() -> Router<Arc<EstadoAplicacao>> {
         .route("/trocar-senha", post(trocar_senha))
         .route("/recuperar-senha", post(solicitar_recuperacao))
         .route("/recuperar-senha/redefinir", post(redefinir_senha))
+        .route("/logout", post(logout))
 }
 
 // -----------------------------------------------------------------------------
@@ -142,11 +144,9 @@ async fn login(
 /// POST /auth/trocar-senha — altera a senha do usuario autenticado.
 async fn trocar_senha(
     State(estado): State<Arc<EstadoAplicacao>>,
-    cabecalhos: HeaderMap,
+    UsuarioAutenticado(claims): UsuarioAutenticado,
     Json(corpo): Json<RequisicaoTrocaSenha>,
 ) -> Result<StatusCode, (StatusCode, Json<ErroApi>)> {
-    let claims = extrair_claims_do_bearer(&estado.servico_jwt, &cabecalhos)?;
-
     estado
         .autenticacao
         .trocar_senha(
@@ -205,28 +205,27 @@ async fn redefinir_senha(
     Ok(StatusCode::OK)
 }
 
+/// POST /auth/logout — encerra manualmente a sessao atual (RF04).
+///
+/// O token JWT deixa de valer de imediato: a validacao e server-side e o
+/// extrator de autenticacao rejeita sessoes encerradas em qualquer rota
+/// protegida.
+async fn logout(
+    State(estado): State<Arc<EstadoAplicacao>>,
+    UsuarioAutenticado(claims): UsuarioAutenticado,
+) -> Result<StatusCode, (StatusCode, Json<ErroApi>)> {
+    estado
+        .autenticacao
+        .encerrar_sessao(claims.sub, claims.sid)
+        .await
+        .map_err(mapear_erro_autenticacao)?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
 // -----------------------------------------------------------------------------
 // Utilitarios
 // -----------------------------------------------------------------------------
-
-/// Extrai o token Bearer do cabecalho de autorizacao e valida a assinatura.
-fn extrair_claims_do_bearer(
-    servico_jwt: &ServicoJwt,
-    cabecalhos: &HeaderMap,
-) -> Result<Claims, (StatusCode, Json<ErroApi>)> {
-    let autorizacao = cabecalhos
-        .get("authorization")
-        .and_then(|valor| valor.to_str().ok())
-        .ok_or_else(|| erro_http(StatusCode::UNAUTHORIZED, "cabecalho de autorizacao ausente"))?;
-
-    let token = autorizacao
-        .strip_prefix("Bearer ")
-        .ok_or_else(|| erro_http(StatusCode::UNAUTHORIZED, "token de autorizacao invalido"))?;
-
-    servico_jwt
-        .validar(token)
-        .map_err(|_| erro_http(StatusCode::UNAUTHORIZED, "token invalido ou expirado"))
-}
 
 /// Converte erros do dominio de autenticacao em respostas HTTP.
 fn mapear_erro_autenticacao(erro: ErroAutenticacao) -> (StatusCode, Json<ErroApi>) {
@@ -236,6 +235,7 @@ fn mapear_erro_autenticacao(erro: ErroAutenticacao) -> (StatusCode, Json<ErroApi
         | ErroAutenticacao::SenhaFraca => erro_http(StatusCode::BAD_REQUEST, erro.to_string()),
         ErroAutenticacao::ContaInativa => erro_http(StatusCode::FORBIDDEN, erro.to_string()),
         ErroAutenticacao::NaoEncontrado => erro_http(StatusCode::NOT_FOUND, erro.to_string()),
+        ErroAutenticacao::SessaoInvalida => erro_http(StatusCode::UNAUTHORIZED, erro.to_string()),
         ErroAutenticacao::Token(mensagem) => erro_http(StatusCode::UNAUTHORIZED, mensagem),
         ErroAutenticacao::Tecnica(mensagem) => {
             erro_http(StatusCode::INTERNAL_SERVER_ERROR, mensagem)

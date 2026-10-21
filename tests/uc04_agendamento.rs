@@ -678,22 +678,33 @@ fn montar_roteador(pool: sqlx::PgPool) -> axum::Router {
     construir_roteador(estado)
 }
 
-fn emitir_token(usuario_id: uuid::Uuid, id_unidade: uuid::Uuid, email: &str) -> String {
+async fn emitir_token(
+    pool: &sqlx::PgPool,
+    usuario_id: uuid::Uuid,
+    id_unidade: uuid::Uuid,
+    email: &str,
+) -> String {
     let segredo = std::env::var("JWT_SEGREDO")
         .unwrap_or_else(|_| "segredo_de_desenvolvimento_visita_plus".to_string());
     let servico = ServicoJwt::novo(segredo, 60);
+    // Sessao ativa vinculada ao token (exigida pelo extrator, RF04)
+    let id_sessao = uuid::Uuid::new_v4();
+    criar_sessao_ativa(pool, id_sessao, usuario_id).await;
     servico
-        .emitir(&Usuario {
-            id: usuario_id,
-            id_unidade,
-            nome: "Usuario Teste".into(),
-            email: email.into(),
-            senha_hash: "nao_utilizado".into(),
-            perfil: PerfilUsuario::Tecnico,
-            status: StatusUsuario::Ativo,
-            exige_troca_senha: false,
-            ultimo_acesso_em: None,
-        })
+        .emitir(
+            &Usuario {
+                id: usuario_id,
+                id_unidade,
+                nome: "Usuario Teste".into(),
+                email: email.into(),
+                senha_hash: "nao_utilizado".into(),
+                perfil: PerfilUsuario::Tecnico,
+                status: StatusUsuario::Ativo,
+                exige_troca_senha: false,
+                ultimo_acesso_em: None,
+            },
+            id_sessao,
+        )
         .expect("deve emitir token")
 }
 
@@ -708,7 +719,7 @@ async fn endpoint_agenda_visita_responde_201() {
             .fetch_one(&pool)
             .await
             .expect("unidade da familia");
-    let token = emitir_token(cenario.coordenador, unidade, "coord@teste.com");
+    let token = emitir_token(&pool, cenario.coordenador, unidade, "coord@teste.com").await;
 
     let data = (Utc::now() + Duration::days(2)).date_naive();
     let corpo = serde_json::json!({
@@ -756,7 +767,7 @@ async fn endpoint_conflito_de_horario_responde_409() {
             .fetch_one(&pool)
             .await
             .expect("unidade da familia");
-    let token = emitir_token(cenario.coordenador, unidade, "coord@teste.com");
+    let token = emitir_token(&pool, cenario.coordenador, unidade, "coord@teste.com").await;
 
     let data = (Utc::now() + Duration::days(3)).date_naive();
     let corpo = serde_json::json!({

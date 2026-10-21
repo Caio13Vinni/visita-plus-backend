@@ -24,6 +24,7 @@ use crate::infraestrutura::repositorios::indicadores_repositorio::RepositorioInd
 use crate::infraestrutura::repositorios::notificacao_repositorio::RepositorioNotificacaoPostgres;
 use crate::infraestrutura::repositorios::recuperacao_repositorio::RepositorioRecuperacaoPostgres;
 use crate::infraestrutura::repositorios::registro_repositorio::RepositorioRegistroPostgres;
+use crate::infraestrutura::repositorios::sessao_repositorio::RepositorioSessaoPostgres;
 use crate::infraestrutura::repositorios::solicitacao_repositorio::RepositorioSolicitacaoPostgres;
 use crate::infraestrutura::repositorios::usuario_repositorio::RepositorioUsuarioPostgres;
 use crate::infraestrutura::repositorios::visita_repositorio::RepositorioVisitaPostgres;
@@ -82,15 +83,18 @@ impl EstadoAplicacao {
         let repositorio_usuario = Arc::new(RepositorioUsuarioPostgres::novo(pool.clone()));
         let repositorio_familia = Arc::new(RepositorioFamiliaPostgres::novo(pool.clone()));
         let repositorio_visita = Arc::new(RepositorioVisitaPostgres::novo(pool.clone()));
+        let repositorio_sessao = Arc::new(RepositorioSessaoPostgres::novo(pool.clone()));
 
         let autenticacao = CasoDeUsoAutenticacao::novo(
             repositorio_usuario.clone(),
+            repositorio_sessao.clone(),
             servico_jwt.clone(),
             servico_auditoria.clone(),
         );
         let recuperacao = CasoDeUsoRecuperacaoAcesso::novo(
             Arc::new(RepositorioRecuperacaoPostgres::novo(pool.clone())),
             repositorio_usuario.clone(),
+            repositorio_sessao,
             servico_auditoria.clone(),
         );
         let profissionais =
