@@ -11,6 +11,7 @@ use crate::interface::api::manipuladores::verificar_saude;
 
 pub mod auditoria;
 pub mod autenticacao;
+pub mod encaminhamentos;
 pub mod extratores;
 pub mod familias;
 pub mod historico;

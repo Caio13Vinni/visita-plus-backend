@@ -115,12 +115,16 @@ impl CasoDeUsoSincronizacao {
         let mut enviados = 0u64;
         let mut erros = 0u64;
         for pendencia in self.banco_local.listar_pendentes().await? {
-            match self.enviar_pendencia(&logado, &pendencia.tipo, &pendencia.payload).await {
+            match self
+                .enviar_pendencia(&logado, &pendencia.tipo, &pendencia.payload)
+                .await
+            {
                 Ok(()) => {
                     self.banco_local.marcar_sincronizado(pendencia.id).await?;
                     enviados += 1;
                 }
-                Err(ErroSincronizacao::VisitaInvalida) | Err(ErroSincronizacao::PendenciaInvalida(_)) => {
+                Err(ErroSincronizacao::VisitaInvalida)
+                | Err(ErroSincronizacao::PendenciaInvalida(_)) => {
                     self.banco_local
                         .marcar_erro(pendencia.id, &pendencia.tipo)
                         .await?;
@@ -147,7 +151,11 @@ impl CasoDeUsoSincronizacao {
         let mut familias_locais = Vec::new();
         let mut visitas_locais = Vec::new();
         for visita in &visitas {
-            if let Some(familia) = self.repositorio_familia.buscar_por_id(visita.id_familia).await? {
+            if let Some(familia) = self
+                .repositorio_familia
+                .buscar_por_id(visita.id_familia)
+                .await?
+            {
                 familias_locais.push(FamiliaLocal {
                     id: familia.id,
                     codigo: familia.codigo,
@@ -206,15 +214,13 @@ impl CasoDeUsoSincronizacao {
     ) -> Result<(), ErroSincronizacao> {
         match tipo {
             PENDENCIA_REGISTRO_VISITA => {
-                let dados: PendenciaRegistroVisita = serde_json::from_str(payload).map_err(|erro| {
-                    ErroSincronizacao::PendenciaInvalida(erro.to_string())
-                })?;
+                let dados: PendenciaRegistroVisita = serde_json::from_str(payload)
+                    .map_err(|erro| ErroSincronizacao::PendenciaInvalida(erro.to_string()))?;
                 self.enviar_registro_visita(logado, &dados).await
             }
             PENDENCIA_ENCAMINHAMENTO => {
-                let dados: PendenciaEncaminhamento = serde_json::from_str(payload).map_err(|erro| {
-                    ErroSincronizacao::PendenciaInvalida(erro.to_string())
-                })?;
+                let dados: PendenciaEncaminhamento = serde_json::from_str(payload)
+                    .map_err(|erro| ErroSincronizacao::PendenciaInvalida(erro.to_string()))?;
                 self.enviar_encaminhamento(logado, &dados).await
             }
             outro => Err(ErroSincronizacao::PendenciaInvalida(format!(

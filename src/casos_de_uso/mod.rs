@@ -5,6 +5,7 @@
 pub mod agendamento;
 pub mod auditoria;
 pub mod autenticacao;
+pub mod encaminhamentos;
 pub mod familias;
 pub mod historico;
 pub mod indicadores;
@@ -12,5 +13,5 @@ pub mod notificacoes;
 pub mod profissionais;
 pub mod recuperacao_acesso;
 pub mod registro;
-pub mod solicitacao_retorno;
 pub mod sincronizacao;
+pub mod solicitacao_retorno;

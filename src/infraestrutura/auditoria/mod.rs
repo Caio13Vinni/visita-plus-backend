@@ -60,6 +60,10 @@ pub mod acao {
     pub const SESSAO_ENCERRADA: &str = "SESSAO_ENCERRADA";
     /// Sincronizacao offline/online executada (envio e recebimento).
     pub const SINCRONIZACAO_REALIZADA: &str = "SINCRONIZACAO_REALIZADA";
+    /// Encaminhamento registrado durante a visita (UC06/RF17).
+    pub const ENCAMINHAMENTO_REGISTRADO: &str = "ENCAMINHAMENTO_REGISTRADO";
+    /// Encaminhamento concluido (UC06/RF17).
+    pub const ENCAMINHAMENTO_CONCLUIDO: &str = "ENCAMINHAMENTO_CONCLUIDO";
 }
 
 /// Servico que registra eventos na tabela de auditoria.
@@ -185,5 +189,7 @@ mod testes {
         assert_eq!(acao::RECUPERACAO_NEGADA, "RECUPERACAO_NEGADA");
         assert_eq!(acao::SESSAO_ENCERRADA, "SESSAO_ENCERRADA");
         assert_eq!(acao::SINCRONIZACAO_REALIZADA, "SINCRONIZACAO_REALIZADA");
+        assert_eq!(acao::ENCAMINHAMENTO_REGISTRADO, "ENCAMINHAMENTO_REGISTRADO");
+        assert_eq!(acao::ENCAMINHAMENTO_CONCLUIDO, "ENCAMINHAMENTO_CONCLUIDO");
     }
 }

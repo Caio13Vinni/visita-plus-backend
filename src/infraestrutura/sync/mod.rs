@@ -234,10 +234,11 @@ impl BancoLocal {
 
     /// Expoe o horario da ultima sincronizacao, quando houver.
     pub async fn ultima_sincronizacao(&self) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
-        let valor: Option<String> =
-            sqlx::query_scalar("SELECT valor FROM meta_sincronizacao WHERE chave = 'ultima_sincronizacao'")
-                .fetch_optional(&self.pool)
-                .await?;
+        let valor: Option<String> = sqlx::query_scalar(
+            "SELECT valor FROM meta_sincronizacao WHERE chave = 'ultima_sincronizacao'",
+        )
+        .fetch_optional(&self.pool)
+        .await?;
         Ok(valor
             .and_then(|texto| DateTime::parse_from_rfc3339(&texto).ok())
             .map(|data| data.with_timezone(&Utc)))

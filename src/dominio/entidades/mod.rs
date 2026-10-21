@@ -3,6 +3,7 @@
 // =============================================================================
 
 pub mod auditoria;
+pub mod encaminhamento;
 pub mod familia;
 pub mod historico;
 pub mod indicadores;
