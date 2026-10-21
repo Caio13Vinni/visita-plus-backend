@@ -16,6 +16,7 @@ use crate::casos_de_uso::notificacoes::{CasoDeUsoNotificacoes, ServicoNotificaco
 use crate::casos_de_uso::profissionais::CasoDeUsoProfissionais;
 use crate::casos_de_uso::recuperacao_acesso::CasoDeUsoRecuperacaoAcesso;
 use crate::casos_de_uso::registro::CasoDeUsoRegistro;
+use crate::casos_de_uso::sincronizacao::CasoDeUsoSincronizacao;
 use crate::casos_de_uso::solicitacao_retorno::CasoDeUsoSolicitacaoRetorno;
 use crate::infraestrutura::auditoria::ServicoAuditoria;
 use crate::infraestrutura::repositorios::auditoria_repositorio::RepositorioAuditoriaPostgres;
@@ -29,6 +30,7 @@ use crate::infraestrutura::repositorios::solicitacao_repositorio::RepositorioSol
 use crate::infraestrutura::repositorios::usuario_repositorio::RepositorioUsuarioPostgres;
 use crate::infraestrutura::repositorios::visita_repositorio::RepositorioVisitaPostgres;
 use crate::infraestrutura::seguranca::jwt::ServicoJwt;
+use crate::infraestrutura::sync::BancoLocal;
 
 /// Estado transportado pelos handlers da API.
 #[derive(Clone)]
@@ -59,6 +61,8 @@ pub struct EstadoAplicacao {
     pub indicadores: CasoDeUsoIndicadores,
     /// Caso de uso UC12 (consulta a auditoria) compartilhado pelos handlers.
     pub auditoria: CasoDeUsoAuditoria,
+    /// Caso de uso de sincronizacao offline/online compartilhado pelos handlers.
+    pub sincronizacao: CasoDeUsoSincronizacao,
     /// Servico de validacao de tokens JWT.
     pub servico_jwt: ServicoJwt,
 }
@@ -124,8 +128,8 @@ impl EstadoAplicacao {
         )
         .com_notificador(servico_notificacoes);
         let historico = CasoDeUsoHistorico::novo(
-            repositorio_visita,
-            repositorio_familia,
+            repositorio_visita.clone(),
+            repositorio_familia.clone(),
             Arc::new(RepositorioRegistroPostgres::novo(pool.clone())),
             repositorio_usuario.clone(),
             servico_auditoria,
@@ -144,6 +148,15 @@ impl EstadoAplicacao {
             repositorio_usuario,
             servico_auditoria_notificacoes,
         );
+        let sincronizacao = CasoDeUsoSincronizacao::novo(
+            BancoLocal::novo(&endereco_sqlite),
+            repositorio_visita.clone(),
+            repositorio_familia.clone(),
+            Arc::new(RepositorioRegistroPostgres::novo(pool.clone())),
+            Arc::new(RepositorioEncaminhamentoPostgres::novo(pool.clone())),
+            repositorio_usuario.clone(),
+            servico_auditoria.clone(),
+        );
 
         Arc::new(EstadoAplicacao {
             pool,
@@ -159,6 +172,7 @@ impl EstadoAplicacao {
             notificacoes,
             indicadores,
             auditoria,
+            sincronizacao,
             servico_jwt,
         })
     }

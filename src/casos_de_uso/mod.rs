@@ -13,3 +13,4 @@ pub mod profissionais;
 pub mod recuperacao_acesso;
 pub mod registro;
 pub mod solicitacao_retorno;
+pub mod sincronizacao;

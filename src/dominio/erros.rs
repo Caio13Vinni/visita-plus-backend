@@ -313,3 +313,29 @@ impl From<sqlx::Error> for ErroRecuperacao {
         ErroRecuperacao::Tecnica(erro.to_string())
     }
 }
+
+/// Erros do caso de uso de sincronizacao offline/online.
+#[derive(Debug, Error)]
+pub enum ErroSincronizacao {
+    /// Usuario autenticado nao possui permissao para sincronizar.
+    #[error("perfil sem permissao para esta operacao")]
+    SemPermissao,
+    /// Usuario nao encontrado.
+    #[error("registro nao encontrado")]
+    NaoEncontrado,
+    /// Visita da pendencia inexistente ou fora da agenda do tecnico.
+    #[error("visita da pendencia inexistente ou fora da agenda do tecnico")]
+    VisitaInvalida,
+    /// Pendencia com tipo desconhecido ou payload malformado.
+    #[error("pendencia invalida: {0}")]
+    PendenciaInvalida(String),
+    /// Falha tecnica na camada de banco local ou central.
+    #[error("falha tecnica: {0}")]
+    Tecnica(String),
+}
+
+impl From<sqlx::Error> for ErroSincronizacao {
+    fn from(erro: sqlx::Error) -> Self {
+        ErroSincronizacao::Tecnica(erro.to_string())
+    }
+}

@@ -58,6 +58,8 @@ pub mod acao {
     pub const RECUPERACAO_NEGADA: &str = "RECUPERACAO_NEGADA";
     /// Encerramento manual da sessao pelo usuario (UC01/RF04).
     pub const SESSAO_ENCERRADA: &str = "SESSAO_ENCERRADA";
+    /// Sincronizacao offline/online executada (envio e recebimento).
+    pub const SINCRONIZACAO_REALIZADA: &str = "SINCRONIZACAO_REALIZADA";
 }
 
 /// Servico que registra eventos na tabela de auditoria.
@@ -182,5 +184,6 @@ mod testes {
         assert_eq!(acao::RECUPERACAO_FALHA, "RECUPERACAO_FALHA");
         assert_eq!(acao::RECUPERACAO_NEGADA, "RECUPERACAO_NEGADA");
         assert_eq!(acao::SESSAO_ENCERRADA, "SESSAO_ENCERRADA");
+        assert_eq!(acao::SINCRONIZACAO_REALIZADA, "SINCRONIZACAO_REALIZADA");
     }
 }
