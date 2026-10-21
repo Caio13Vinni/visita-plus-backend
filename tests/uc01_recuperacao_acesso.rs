@@ -25,6 +25,7 @@ use visita_plus::dominio::erros::ErroRecuperacao;
 use visita_plus::infraestrutura::auditoria::ServicoAuditoria;
 use visita_plus::infraestrutura::auditoria::acao;
 use visita_plus::infraestrutura::repositorios::recuperacao_repositorio::RepositorioRecuperacaoPostgres;
+use visita_plus::infraestrutura::repositorios::sessao_repositorio::RepositorioSessaoPostgres;
 use visita_plus::infraestrutura::repositorios::usuario_repositorio::RepositorioUsuarioPostgres;
 use visita_plus::infraestrutura::seguranca::jwt::ServicoJwt;
 use visita_plus::interface::api::construir_roteador;
@@ -35,6 +36,7 @@ fn montar_caso_de_uso(pool: &sqlx::PgPool) -> CasoDeUsoRecuperacaoAcesso {
     CasoDeUsoRecuperacaoAcesso::novo(
         Arc::new(RepositorioRecuperacaoPostgres::novo(pool.clone())),
         Arc::new(RepositorioUsuarioPostgres::novo(pool.clone())),
+        Arc::new(RepositorioSessaoPostgres::novo(pool.clone())),
         ServicoAuditoria::novo(pool.clone()),
     )
 }
@@ -43,6 +45,7 @@ fn montar_caso_de_uso(pool: &sqlx::PgPool) -> CasoDeUsoRecuperacaoAcesso {
 fn montar_caso_autenticacao(pool: &sqlx::PgPool) -> CasoDeUsoAutenticacao {
     CasoDeUsoAutenticacao::novo(
         Arc::new(RepositorioUsuarioPostgres::novo(pool.clone())),
+        Arc::new(RepositorioSessaoPostgres::novo(pool.clone())),
         ServicoJwt::novo("segredo_teste_recuperacao", 60),
         ServicoAuditoria::novo(pool.clone()),
     )

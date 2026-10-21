@@ -56,6 +56,8 @@ pub mod acao {
     /// Solicitacao de recuperacao para conta inexistente ou inativa,
     /// sem criacao de codigo (UC01/RF03).
     pub const RECUPERACAO_NEGADA: &str = "RECUPERACAO_NEGADA";
+    /// Encerramento manual da sessao pelo usuario (UC01/RF04).
+    pub const SESSAO_ENCERRADA: &str = "SESSAO_ENCERRADA";
 }
 
 /// Servico que registra eventos na tabela de auditoria.
@@ -179,5 +181,6 @@ mod testes {
         assert_eq!(acao::RECUPERACAO_CONCLUIDA, "RECUPERACAO_CONCLUIDA");
         assert_eq!(acao::RECUPERACAO_FALHA, "RECUPERACAO_FALHA");
         assert_eq!(acao::RECUPERACAO_NEGADA, "RECUPERACAO_NEGADA");
+        assert_eq!(acao::SESSAO_ENCERRADA, "SESSAO_ENCERRADA");
     }
 }
