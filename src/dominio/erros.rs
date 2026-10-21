@@ -19,6 +19,9 @@ pub enum ErroAutenticacao {
     /// Nova senha nao atende aos criterios minimos.
     #[error("a nova senha deve ter no minimo 8 caracteres")]
     SenhaFraca,
+    /// Sessao encerrada, expirada ou inexistente (RF04/RNF07).
+    #[error("sessao invalida, expirada ou encerrada")]
+    SessaoInvalida,
     /// Usuario/registro nao encontrado.
     #[error("registro nao encontrado")]
     NaoEncontrado,
@@ -287,6 +290,30 @@ impl From<sqlx::Error> for ErroHistorico {
     }
 }
 
+/// Erros do caso de uso de recuperacao de acesso por codigo (UC01/RF03).
+#[derive(Debug, Error)]
+pub enum ErroRecuperacao {
+    /// E-mail com formato invalido.
+    #[error("formato de email invalido")]
+    EmailInvalido,
+    /// Codigo inexistente, ja usado ou expirado — resposta generica,
+    /// sem revelar a existencia da conta ou do codigo (RF03).
+    #[error("codigo invalido ou expirado")]
+    CodigoInvalidoOuExpirado,
+    /// Nova senha nao atende aos criterios minimos.
+    #[error("a nova senha deve ter no minimo 8 caracteres")]
+    SenhaFraca,
+    /// Falha tecnica na camada de banco ou seguranca.
+    #[error("falha tecnica: {0}")]
+    Tecnica(String),
+}
+
+impl From<sqlx::Error> for ErroRecuperacao {
+    fn from(erro: sqlx::Error) -> Self {
+        ErroRecuperacao::Tecnica(erro.to_string())
+    }
+}
+
 /// Erros do caso de uso de encaminhamentos (UC06/RF17).
 #[derive(Debug, Error)]
 pub enum ErroEncaminhamento {
@@ -319,5 +346,31 @@ pub enum ErroEncaminhamento {
 impl From<sqlx::Error> for ErroEncaminhamento {
     fn from(erro: sqlx::Error) -> Self {
         ErroEncaminhamento::Tecnica(erro.to_string())
+    }
+}
+
+/// Erros do caso de uso de sincronizacao offline/online.
+#[derive(Debug, Error)]
+pub enum ErroSincronizacao {
+    /// Usuario autenticado nao possui permissao para sincronizar.
+    #[error("perfil sem permissao para esta operacao")]
+    SemPermissao,
+    /// Usuario nao encontrado.
+    #[error("registro nao encontrado")]
+    NaoEncontrado,
+    /// Visita da pendencia inexistente ou fora da agenda do tecnico.
+    #[error("visita da pendencia inexistente ou fora da agenda do tecnico")]
+    VisitaInvalida,
+    /// Pendencia com tipo desconhecido ou payload malformado.
+    #[error("pendencia invalida: {0}")]
+    PendenciaInvalida(String),
+    /// Falha tecnica na camada de banco local ou central.
+    #[error("falha tecnica: {0}")]
+    Tecnica(String),
+}
+
+impl From<sqlx::Error> for ErroSincronizacao {
+    fn from(erro: sqlx::Error) -> Self {
+        ErroSincronizacao::Tecnica(erro.to_string())
     }
 }

@@ -20,6 +20,7 @@ use visita_plus::dominio::enums::{PerfilUsuario, StatusUsuario};
 use visita_plus::dominio::erros::ErroAutenticacao;
 use visita_plus::infraestrutura::auditoria::ServicoAuditoria;
 use visita_plus::infraestrutura::auditoria::acao;
+use visita_plus::infraestrutura::repositorios::sessao_repositorio::RepositorioSessaoPostgres;
 use visita_plus::infraestrutura::repositorios::usuario_repositorio::RepositorioUsuarioPostgres;
 use visita_plus::infraestrutura::seguranca::jwt::ServicoJwt;
 use visita_plus::interface::api::construir_roteador;
@@ -29,6 +30,7 @@ use visita_plus::interface::estado::EstadoAplicacao;
 fn montar_caso_de_uso(pool: &sqlx::PgPool) -> CasoDeUsoAutenticacao {
     CasoDeUsoAutenticacao::novo(
         Arc::new(RepositorioUsuarioPostgres::novo(pool.clone())),
+        Arc::new(RepositorioSessaoPostgres::novo(pool.clone())),
         ServicoJwt::novo("segredo_teste_uc01", 60),
         ServicoAuditoria::novo(pool.clone()),
     )
@@ -376,18 +378,24 @@ async fn endpoint_trocar_senha_aceita_token_valido() {
     let segredo = std::env::var("JWT_SEGREDO")
         .unwrap_or_else(|_| "segredo_de_desenvolvimento_visita_plus".to_string());
     let servico = ServicoJwt::novo(segredo, 60);
+    // Sessao ativa vinculada ao token (exigida pelo extrator, RF04)
+    let id_sessao = uuid::Uuid::new_v4();
+    comum::criar_sessao_ativa(&pool, id_sessao, usuario.id).await;
     let token = servico
-        .emitir(&visita_plus::dominio::entidades::usuario::Usuario {
-            id: usuario.id,
-            id_unidade: usuario.id_unidade,
-            nome: "Usuario Teste".into(),
-            email: usuario.email.clone(),
-            senha_hash: "nao_utilizado".into(),
-            perfil: PerfilUsuario::Tecnico,
-            status: StatusUsuario::Ativo,
-            exige_troca_senha: true,
-            ultimo_acesso_em: None,
-        })
+        .emitir(
+            &visita_plus::dominio::entidades::usuario::Usuario {
+                id: usuario.id,
+                id_unidade: usuario.id_unidade,
+                nome: "Usuario Teste".into(),
+                email: usuario.email.clone(),
+                senha_hash: "nao_utilizado".into(),
+                perfil: PerfilUsuario::Tecnico,
+                status: StatusUsuario::Ativo,
+                exige_troca_senha: true,
+                ultimo_acesso_em: None,
+            },
+            id_sessao,
+        )
         .expect("deve emitir token");
 
     let roteador = montar_roteador(pool);

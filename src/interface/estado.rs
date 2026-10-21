@@ -15,7 +15,9 @@ use crate::casos_de_uso::historico::CasoDeUsoHistorico;
 use crate::casos_de_uso::indicadores::CasoDeUsoIndicadores;
 use crate::casos_de_uso::notificacoes::{CasoDeUsoNotificacoes, ServicoNotificacoes};
 use crate::casos_de_uso::profissionais::CasoDeUsoProfissionais;
+use crate::casos_de_uso::recuperacao_acesso::CasoDeUsoRecuperacaoAcesso;
 use crate::casos_de_uso::registro::CasoDeUsoRegistro;
+use crate::casos_de_uso::sincronizacao::CasoDeUsoSincronizacao;
 use crate::casos_de_uso::solicitacao_retorno::CasoDeUsoSolicitacaoRetorno;
 use crate::infraestrutura::auditoria::ServicoAuditoria;
 use crate::infraestrutura::repositorios::auditoria_repositorio::RepositorioAuditoriaPostgres;
@@ -23,11 +25,14 @@ use crate::infraestrutura::repositorios::encaminhamento_repositorio::Repositorio
 use crate::infraestrutura::repositorios::familia_repositorio::RepositorioFamiliaPostgres;
 use crate::infraestrutura::repositorios::indicadores_repositorio::RepositorioIndicadoresPostgres;
 use crate::infraestrutura::repositorios::notificacao_repositorio::RepositorioNotificacaoPostgres;
+use crate::infraestrutura::repositorios::recuperacao_repositorio::RepositorioRecuperacaoPostgres;
 use crate::infraestrutura::repositorios::registro_repositorio::RepositorioRegistroPostgres;
+use crate::infraestrutura::repositorios::sessao_repositorio::RepositorioSessaoPostgres;
 use crate::infraestrutura::repositorios::solicitacao_repositorio::RepositorioSolicitacaoPostgres;
 use crate::infraestrutura::repositorios::usuario_repositorio::RepositorioUsuarioPostgres;
 use crate::infraestrutura::repositorios::visita_repositorio::RepositorioVisitaPostgres;
 use crate::infraestrutura::seguranca::jwt::ServicoJwt;
+use crate::infraestrutura::sync::BancoLocal;
 
 /// Estado transportado pelos handlers da API.
 #[derive(Clone)]
@@ -38,6 +43,8 @@ pub struct EstadoAplicacao {
     pub endereco_sqlite: String,
     /// Caso de uso UC01 (autenticacao) compartilhado pelos handlers.
     pub autenticacao: CasoDeUsoAutenticacao,
+    /// Caso de uso UC01/RF03 (recuperacao de acesso) compartilhado pelos handlers.
+    pub recuperacao: CasoDeUsoRecuperacaoAcesso,
     /// Caso de uso UC02 (profissionais) compartilhado pelos handlers.
     pub profissionais: CasoDeUsoProfissionais,
     /// Caso de uso UC03 (familias) compartilhado pelos handlers.
@@ -56,6 +63,8 @@ pub struct EstadoAplicacao {
     pub indicadores: CasoDeUsoIndicadores,
     /// Caso de uso UC12 (consulta a auditoria) compartilhado pelos handlers.
     pub auditoria: CasoDeUsoAuditoria,
+    /// Caso de uso de sincronizacao offline/online compartilhado pelos handlers.
+    pub sincronizacao: CasoDeUsoSincronizacao,
     /// Caso de uso UC06/RF17 (encaminhamentos) compartilhado pelos handlers.
     pub encaminhamentos: CasoDeUsoEncaminhamentos,
     /// Servico de validacao de tokens JWT.
@@ -82,10 +91,18 @@ impl EstadoAplicacao {
         let repositorio_usuario = Arc::new(RepositorioUsuarioPostgres::novo(pool.clone()));
         let repositorio_familia = Arc::new(RepositorioFamiliaPostgres::novo(pool.clone()));
         let repositorio_visita = Arc::new(RepositorioVisitaPostgres::novo(pool.clone()));
+        let repositorio_sessao = Arc::new(RepositorioSessaoPostgres::novo(pool.clone()));
 
         let autenticacao = CasoDeUsoAutenticacao::novo(
             repositorio_usuario.clone(),
+            repositorio_sessao.clone(),
             servico_jwt.clone(),
+            servico_auditoria.clone(),
+        );
+        let recuperacao = CasoDeUsoRecuperacaoAcesso::novo(
+            Arc::new(RepositorioRecuperacaoPostgres::novo(pool.clone())),
+            repositorio_usuario.clone(),
+            repositorio_sessao,
             servico_auditoria.clone(),
         );
         let profissionais =
@@ -119,7 +136,7 @@ impl EstadoAplicacao {
             repositorio_familia.clone(),
             Arc::new(RepositorioRegistroPostgres::novo(pool.clone())),
             repositorio_usuario.clone(),
-            servico_auditoria,
+            servico_auditoria.clone(),
         );
         let notificacoes = CasoDeUsoNotificacoes::novo(
             repositorio_notificacao,
@@ -139,14 +156,24 @@ impl EstadoAplicacao {
             Arc::new(RepositorioEncaminhamentoPostgres::novo(pool.clone())),
             repositorio_visita.clone(),
             repositorio_familia.clone(),
-            repositorio_usuario,
-            servico_auditoria_notificacoes,
+            repositorio_usuario.clone(),
+            servico_auditoria_notificacoes.clone(),
+        );
+        let sincronizacao = CasoDeUsoSincronizacao::novo(
+            BancoLocal::novo(&endereco_sqlite),
+            repositorio_visita.clone(),
+            repositorio_familia.clone(),
+            Arc::new(RepositorioRegistroPostgres::novo(pool.clone())),
+            Arc::new(RepositorioEncaminhamentoPostgres::novo(pool.clone())),
+            repositorio_usuario.clone(),
+            servico_auditoria.clone(),
         );
 
         Arc::new(EstadoAplicacao {
             pool,
             endereco_sqlite,
             autenticacao,
+            recuperacao,
             profissionais,
             familias,
             agendamento,
@@ -156,6 +183,7 @@ impl EstadoAplicacao {
             notificacoes,
             indicadores,
             auditoria,
+            sincronizacao,
             encaminhamentos,
             servico_jwt,
         })

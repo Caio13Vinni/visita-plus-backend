@@ -46,6 +46,20 @@ pub mod acao {
     pub const AUDITORIA_ACESSO_NEGADO: &str = "AUDITORIA_ACESSO_NEGADO";
     /// Tentativa de acesso a item de historico fora da visibilidade (UC09).
     pub const HISTORICO_ACESSO_NEGADO: &str = "HISTORICO_ACESSO_NEGADO";
+    /// Solicitacao de recuperacao de acesso com codigo criado (UC01/RF03).
+    pub const RECUPERACAO_SOLICITADA: &str = "RECUPERACAO_SOLICITADA";
+    /// Redefinicao de senha concluida com codigo de recuperacao (UC01/RF03).
+    pub const RECUPERACAO_CONCLUIDA: &str = "RECUPERACAO_CONCLUIDA";
+    /// Tentativa de redefinicao com codigo invalido, usado ou expirado
+    /// (UC01/RF03).
+    pub const RECUPERACAO_FALHA: &str = "RECUPERACAO_FALHA";
+    /// Solicitacao de recuperacao para conta inexistente ou inativa,
+    /// sem criacao de codigo (UC01/RF03).
+    pub const RECUPERACAO_NEGADA: &str = "RECUPERACAO_NEGADA";
+    /// Encerramento manual da sessao pelo usuario (UC01/RF04).
+    pub const SESSAO_ENCERRADA: &str = "SESSAO_ENCERRADA";
+    /// Sincronizacao offline/online executada (envio e recebimento).
+    pub const SINCRONIZACAO_REALIZADA: &str = "SINCRONIZACAO_REALIZADA";
     /// Encaminhamento registrado durante a visita (UC06/RF17).
     pub const ENCAMINHAMENTO_REGISTRADO: &str = "ENCAMINHAMENTO_REGISTRADO";
     /// Encaminhamento concluido (UC06/RF17).
@@ -169,6 +183,12 @@ mod testes {
         assert_eq!(acao::NOTIFICACAO_ACESSO_NEGADO, "NOTIFICACAO_ACESSO_NEGADO");
         assert_eq!(acao::AUDITORIA_ACESSO_NEGADO, "AUDITORIA_ACESSO_NEGADO");
         assert_eq!(acao::HISTORICO_ACESSO_NEGADO, "HISTORICO_ACESSO_NEGADO");
+        assert_eq!(acao::RECUPERACAO_SOLICITADA, "RECUPERACAO_SOLICITADA");
+        assert_eq!(acao::RECUPERACAO_CONCLUIDA, "RECUPERACAO_CONCLUIDA");
+        assert_eq!(acao::RECUPERACAO_FALHA, "RECUPERACAO_FALHA");
+        assert_eq!(acao::RECUPERACAO_NEGADA, "RECUPERACAO_NEGADA");
+        assert_eq!(acao::SESSAO_ENCERRADA, "SESSAO_ENCERRADA");
+        assert_eq!(acao::SINCRONIZACAO_REALIZADA, "SINCRONIZACAO_REALIZADA");
         assert_eq!(acao::ENCAMINHAMENTO_REGISTRADO, "ENCAMINHAMENTO_REGISTRADO");
         assert_eq!(acao::ENCAMINHAMENTO_CONCLUIDO, "ENCAMINHAMENTO_CONCLUIDO");
     }

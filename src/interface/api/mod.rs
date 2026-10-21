@@ -22,6 +22,7 @@ pub mod notificacoes;
 pub mod profissionais;
 pub mod registros;
 pub mod rotas;
+pub mod sincronizacao;
 pub mod solicitacoes;
 pub mod visitas;
 

@@ -6,3 +6,4 @@ pub mod auditoria;
 pub mod banco;
 pub mod repositorios;
 pub mod seguranca;
+pub mod sync;
