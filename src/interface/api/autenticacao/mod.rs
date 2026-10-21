@@ -1,7 +1,9 @@
 // =============================================================================
 // UC01 — Interface HTTP de autenticacao
-// POST /api/v1/auth/login         -> autenticar usuario
-// POST /api/v1/auth/trocar-senha  -> troca de senha (primeiro acesso)
+// POST /api/v1/auth/login                        -> autenticar usuario
+// POST /api/v1/auth/trocar-senha                 -> troca de senha (primeiro acesso)
+// POST /api/v1/auth/recuperar-senha              -> solicita codigo (RF03, anonimo)
+// POST /api/v1/auth/recuperar-senha/redefinir    -> redefine a senha (RF03, anonimo)
 // =============================================================================
 
 use axum::extract::State;
@@ -15,7 +17,7 @@ use uuid::Uuid;
 use crate::casos_de_uso::autenticacao::Credenciais;
 use crate::dominio::entidades::usuario::Usuario;
 use crate::dominio::enums::{PerfilUsuario, StatusUsuario};
-use crate::dominio::erros::ErroAutenticacao;
+use crate::dominio::erros::{ErroAutenticacao, ErroRecuperacao};
 use crate::infraestrutura::seguranca::jwt::{Claims, ServicoJwt};
 use crate::interface::api::modelos::ErroApi;
 use crate::interface::estado::EstadoAplicacao;
@@ -25,6 +27,8 @@ pub fn construir_rotas() -> Router<Arc<EstadoAplicacao>> {
     Router::new()
         .route("/login", post(login))
         .route("/trocar-senha", post(trocar_senha))
+        .route("/recuperar-senha", post(solicitar_recuperacao))
+        .route("/recuperar-senha/redefinir", post(redefinir_senha))
 }
 
 // -----------------------------------------------------------------------------
@@ -43,6 +47,27 @@ pub struct RequisicaoLogin {
 pub struct RequisicaoTrocaSenha {
     pub senha_atual: String,
     pub nova_senha: String,
+}
+
+/// Corpo da requisicao de solicitacao de recuperacao de senha (RF03).
+#[derive(Debug, Deserialize)]
+pub struct RequisicaoRecuperarSenha {
+    pub email: String,
+}
+
+/// Corpo da requisicao de redefinicao de senha via codigo (RF03).
+#[derive(Debug, Deserialize)]
+pub struct RequisicaoRedefinirSenha {
+    pub email: String,
+    pub codigo: String,
+    pub nova_senha: String,
+}
+
+/// Resposta publica generica da solicitacao de recuperacao (RF03).
+/// Nao expoe o codigo nem revela a existencia da conta.
+#[derive(Debug, Serialize)]
+pub struct RespostaRecuperarSenha {
+    pub mensagem: String,
 }
 
 /// Resposta do login bem-sucedido.
@@ -137,6 +162,49 @@ async fn trocar_senha(
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// POST /auth/recuperar-senha — solicita o codigo de recuperacao (RF03).
+///
+/// Fluxo anonimo: a resposta publica e generica e nao revela se a conta
+/// existe. O prototipo academico nao possui envio de e-mail (SMTP); o
+/// codigo gerado fica apenas no log do servidor.
+async fn solicitar_recuperacao(
+    State(estado): State<Arc<EstadoAplicacao>>,
+    Json(corpo): Json<RequisicaoRecuperarSenha>,
+) -> Result<Json<RespostaRecuperarSenha>, (StatusCode, Json<ErroApi>)> {
+    let solicitacao = estado
+        .recuperacao
+        .solicitar(&corpo.email)
+        .await
+        .map_err(mapear_erro_recuperacao)?;
+
+    if let Some(codigo) = &solicitacao.codigo {
+        tracing::info!(
+            email = %corpo.email,
+            codigo = %codigo,
+            "codigo de recuperacao de acesso gerado (prototipo sem envio de e-mail)"
+        );
+    }
+
+    Ok(Json(RespostaRecuperarSenha {
+        mensagem: solicitacao.mensagem.to_string(),
+    }))
+}
+
+/// POST /auth/recuperar-senha/redefinir — redefine a senha com o codigo
+/// informado (RF03). Fluxo anonimo.
+async fn redefinir_senha(
+    State(estado): State<Arc<EstadoAplicacao>>,
+    Json(corpo): Json<RequisicaoRedefinirSenha>,
+) -> Result<StatusCode, (StatusCode, Json<ErroApi>)> {
+    estado
+        .recuperacao
+        .redefinir(&corpo.email, &corpo.codigo, &corpo.nova_senha)
+        .await
+        .map_err(mapear_erro_recuperacao)?;
+
+    Ok(StatusCode::OK)
+}
+
 // -----------------------------------------------------------------------------
 // Utilitarios
 // -----------------------------------------------------------------------------
@@ -170,6 +238,20 @@ fn mapear_erro_autenticacao(erro: ErroAutenticacao) -> (StatusCode, Json<ErroApi
         ErroAutenticacao::NaoEncontrado => erro_http(StatusCode::NOT_FOUND, erro.to_string()),
         ErroAutenticacao::Token(mensagem) => erro_http(StatusCode::UNAUTHORIZED, mensagem),
         ErroAutenticacao::Tecnica(mensagem) => {
+            erro_http(StatusCode::INTERNAL_SERVER_ERROR, mensagem)
+        }
+    }
+}
+
+/// Converte erros de recuperacao de acesso em respostas HTTP (RF03).
+/// 'CodigoInvalidoOuExpirado' usa a mesma mensagem generica, sem revelar
+/// se a conta existe ou qual codigo falhou.
+fn mapear_erro_recuperacao(erro: ErroRecuperacao) -> (StatusCode, Json<ErroApi>) {
+    match erro {
+        ErroRecuperacao::EmailInvalido
+        | ErroRecuperacao::CodigoInvalidoOuExpirado
+        | ErroRecuperacao::SenhaFraca => erro_http(StatusCode::BAD_REQUEST, erro.to_string()),
+        ErroRecuperacao::Tecnica(mensagem) => {
             erro_http(StatusCode::INTERNAL_SERVER_ERROR, mensagem)
         }
     }

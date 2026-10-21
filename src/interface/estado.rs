@@ -14,6 +14,7 @@ use crate::casos_de_uso::historico::CasoDeUsoHistorico;
 use crate::casos_de_uso::indicadores::CasoDeUsoIndicadores;
 use crate::casos_de_uso::notificacoes::{CasoDeUsoNotificacoes, ServicoNotificacoes};
 use crate::casos_de_uso::profissionais::CasoDeUsoProfissionais;
+use crate::casos_de_uso::recuperacao_acesso::CasoDeUsoRecuperacaoAcesso;
 use crate::casos_de_uso::registro::CasoDeUsoRegistro;
 use crate::casos_de_uso::solicitacao_retorno::CasoDeUsoSolicitacaoRetorno;
 use crate::infraestrutura::auditoria::ServicoAuditoria;
@@ -21,6 +22,7 @@ use crate::infraestrutura::repositorios::auditoria_repositorio::RepositorioAudit
 use crate::infraestrutura::repositorios::familia_repositorio::RepositorioFamiliaPostgres;
 use crate::infraestrutura::repositorios::indicadores_repositorio::RepositorioIndicadoresPostgres;
 use crate::infraestrutura::repositorios::notificacao_repositorio::RepositorioNotificacaoPostgres;
+use crate::infraestrutura::repositorios::recuperacao_repositorio::RepositorioRecuperacaoPostgres;
 use crate::infraestrutura::repositorios::registro_repositorio::RepositorioRegistroPostgres;
 use crate::infraestrutura::repositorios::solicitacao_repositorio::RepositorioSolicitacaoPostgres;
 use crate::infraestrutura::repositorios::usuario_repositorio::RepositorioUsuarioPostgres;
@@ -36,6 +38,8 @@ pub struct EstadoAplicacao {
     pub endereco_sqlite: String,
     /// Caso de uso UC01 (autenticacao) compartilhado pelos handlers.
     pub autenticacao: CasoDeUsoAutenticacao,
+    /// Caso de uso UC01/RF03 (recuperacao de acesso) compartilhado pelos handlers.
+    pub recuperacao: CasoDeUsoRecuperacaoAcesso,
     /// Caso de uso UC02 (profissionais) compartilhado pelos handlers.
     pub profissionais: CasoDeUsoProfissionais,
     /// Caso de uso UC03 (familias) compartilhado pelos handlers.
@@ -82,6 +86,11 @@ impl EstadoAplicacao {
         let autenticacao = CasoDeUsoAutenticacao::novo(
             repositorio_usuario.clone(),
             servico_jwt.clone(),
+            servico_auditoria.clone(),
+        );
+        let recuperacao = CasoDeUsoRecuperacaoAcesso::novo(
+            Arc::new(RepositorioRecuperacaoPostgres::novo(pool.clone())),
+            repositorio_usuario.clone(),
             servico_auditoria.clone(),
         );
         let profissionais =
@@ -136,6 +145,7 @@ impl EstadoAplicacao {
             pool,
             endereco_sqlite,
             autenticacao,
+            recuperacao,
             profissionais,
             familias,
             agendamento,

@@ -286,3 +286,27 @@ impl From<sqlx::Error> for ErroHistorico {
         ErroHistorico::Tecnica(erro.to_string())
     }
 }
+
+/// Erros do caso de uso de recuperacao de acesso por codigo (UC01/RF03).
+#[derive(Debug, Error)]
+pub enum ErroRecuperacao {
+    /// E-mail com formato invalido.
+    #[error("formato de email invalido")]
+    EmailInvalido,
+    /// Codigo inexistente, ja usado ou expirado — resposta generica,
+    /// sem revelar a existencia da conta ou do codigo (RF03).
+    #[error("codigo invalido ou expirado")]
+    CodigoInvalidoOuExpirado,
+    /// Nova senha nao atende aos criterios minimos.
+    #[error("a nova senha deve ter no minimo 8 caracteres")]
+    SenhaFraca,
+    /// Falha tecnica na camada de banco ou seguranca.
+    #[error("falha tecnica: {0}")]
+    Tecnica(String),
+}
+
+impl From<sqlx::Error> for ErroRecuperacao {
+    fn from(erro: sqlx::Error) -> Self {
+        ErroRecuperacao::Tecnica(erro.to_string())
+    }
+}
