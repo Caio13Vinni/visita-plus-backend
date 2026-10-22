@@ -64,6 +64,14 @@ pub mod acao {
     pub const ENCAMINHAMENTO_REGISTRADO: &str = "ENCAMINHAMENTO_REGISTRADO";
     /// Encaminhamento concluido (UC06/RF17).
     pub const ENCAMINHAMENTO_CONCLUIDO: &str = "ENCAMINHAMENTO_CONCLUIDO";
+    /// Novo profissional cadastrado pelo coordenador (UC02/RN22).
+    pub const PROFISSIONAL_CRIADO: &str = "PROFISSIONAL_CRIADO";
+    /// Profissional editado ou com status alterado (UC02/RN22).
+    pub const PROFISSIONAL_ALTERADO: &str = "PROFISSIONAL_ALTERADO";
+    /// Nova familia ficticia cadastrada pelo coordenador (UC03/RN22).
+    pub const FAMILIA_CRIADA: &str = "FAMILIA_CRIADA";
+    /// Familia editada ou com status alterado (UC03/RN22).
+    pub const FAMILIA_ALTERADA: &str = "FAMILIA_ALTERADA";
 }
 
 /// Servico que registra eventos na tabela de auditoria.
@@ -191,5 +199,9 @@ mod testes {
         assert_eq!(acao::SINCRONIZACAO_REALIZADA, "SINCRONIZACAO_REALIZADA");
         assert_eq!(acao::ENCAMINHAMENTO_REGISTRADO, "ENCAMINHAMENTO_REGISTRADO");
         assert_eq!(acao::ENCAMINHAMENTO_CONCLUIDO, "ENCAMINHAMENTO_CONCLUIDO");
+        assert_eq!(acao::PROFISSIONAL_CRIADO, "PROFISSIONAL_CRIADO");
+        assert_eq!(acao::PROFISSIONAL_ALTERADO, "PROFISSIONAL_ALTERADO");
+        assert_eq!(acao::FAMILIA_CRIADA, "FAMILIA_CRIADA");
+        assert_eq!(acao::FAMILIA_ALTERADA, "FAMILIA_ALTERADA");
     }
 }

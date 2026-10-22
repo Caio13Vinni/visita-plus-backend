@@ -157,7 +157,8 @@ async fn tecnico_inicia_visita_e_cria_registro_em_rascunho() {
         .agendamento
         .detalhar_visita(cenario.tecnico, cenario.visita)
         .await
-        .expect("visita");
+        .expect("visita")
+        .visita;
     assert_eq!(
         visita.status,
         StatusVisita::EmAndamento,
@@ -270,7 +271,8 @@ async fn rascunho_pode_ser_salvo_sem_finalizar() {
         .agendamento
         .detalhar_visita(cenario.tecnico, cenario.visita)
         .await
-        .expect("visita");
+        .expect("visita")
+        .visita;
     assert_eq!(
         visita.status,
         StatusVisita::EmAndamento,
@@ -356,7 +358,8 @@ async fn tecnico_finaliza_visita_realizada_com_sucesso() {
         .agendamento
         .detalhar_visita(cenario.tecnico, cenario.visita)
         .await
-        .expect("visita");
+        .expect("visita")
+        .visita;
     assert_eq!(
         visita.status,
         StatusVisita::Realizada,
@@ -418,7 +421,8 @@ async fn tecnico_finaliza_visita_nao_realizada_com_motivo() {
         .agendamento
         .detalhar_visita(cenario.tecnico, cenario.visita)
         .await
-        .expect("visita");
+        .expect("visita")
+        .visita;
     assert_eq!(visita.status, StatusVisita::NaoRealizada);
 }
 
@@ -696,7 +700,8 @@ async fn endpoint_finaliza_registro_responde_200_e_visita_realizada() {
         .agendamento
         .detalhar_visita(cenario.tecnico, cenario.visita)
         .await
-        .expect("visita");
+        .expect("visita")
+        .visita;
     assert_eq!(visita.status, StatusVisita::Realizada);
 }
 
@@ -739,4 +744,28 @@ async fn endpoint_complemento_em_rascunho_responde_400() {
         .expect("falha ao executar a requisicao");
 
     assert_eq!(resposta.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn detalhe_da_visita_inclui_dados_da_familia() {
+    let pool = preparar_banco().await;
+    let cenario = cenario_com_visita_agendada(&pool, &sufixo_unico()).await;
+    let suites = montar(&pool);
+
+    // RF12: o tecnico acessa os dados da familia como contexto da visita
+    // autorizada, sem consultar diretamente a base de familias.
+    let detalhe = suites
+        .agendamento
+        .detalhar_visita(cenario.tecnico, cenario.visita)
+        .await
+        .expect("tecnico deveria detalhar a propria visita");
+
+    assert_eq!(detalhe.familia.id, detalhe.visita.id_familia);
+    assert!(
+        !detalhe.familia.codigo.is_empty()
+            && !detalhe.familia.nome_referencia.is_empty()
+            && !detalhe.familia.contato.is_empty()
+            && !detalhe.familia.endereco.is_empty(),
+        "detalhe deve trazer os dados cadastrais da familia (RF12)"
+    );
 }

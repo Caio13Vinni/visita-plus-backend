@@ -8,6 +8,8 @@ use uuid::Uuid;
 
 use crate::dominio::enums::{PrioridadeVisita, StatusVisita};
 
+use super::familia::Familia;
+
 /// Representa um agendamento de visita domiciliar na agenda de um tecnico.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Visita {
@@ -41,6 +43,17 @@ impl Visita {
 
         data > hoje || (data == hoje && horario > agora_horario)
     }
+}
+
+/// Visita acompanhada dos dados da familia atendida (RF12).
+///
+/// A familia so e exposta a partir de uma visita autorizada — o tecnico
+/// acessa os dados cadastrais como contexto do atendimento, nao por uma
+/// consulta direta a base de familias.
+#[derive(Debug, Clone)]
+pub struct DetalheVisita {
+    pub visita: Visita,
+    pub familia: Familia,
 }
 
 /// Dados de entrada para agendar uma visita (UC04).

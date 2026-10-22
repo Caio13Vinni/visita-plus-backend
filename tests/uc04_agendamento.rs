@@ -823,3 +823,65 @@ async fn endpoint_sem_token_responde_401() {
 
     assert_eq!(resposta.status(), StatusCode::UNAUTHORIZED);
 }
+
+#[tokio::test]
+async fn coordenador_de_outra_unidade_nao_gerencia_visita_alheia() {
+    let pool = preparar_banco().await;
+    let cenario = cenario_padrao(&pool, &sufixo_unico()).await;
+    let coordenador_alheio = criar_usuario(
+        &pool,
+        PerfilUsuario::Coordenador,
+        StatusUsuario::Ativo,
+        false,
+    )
+    .await;
+    let agendamento = montar_agendamento(&pool);
+
+    let visita = agendamento
+        .agendar_visita(
+            cenario.coordenador,
+            cadastro_visita(cenario.familia, cenario.tecnico, 2, 9),
+        )
+        .await
+        .expect("visita agendada");
+
+    // Detalhar: mesmo erro de "nao encontrado", para nao revelar a agenda.
+    let erro = agendamento
+        .detalhar_visita(coordenador_alheio.id, visita.id)
+        .await
+        .expect_err("coordenador alheio nao deveria detalhar visita de outra unidade");
+    assert!(matches!(erro, ErroAgendamento::NaoEncontrado));
+
+    // Cancelar: sem permissao.
+    let erro = agendamento
+        .cancelar_visita(
+            coordenador_alheio.id,
+            visita.id,
+            "Tentativa de cancelamento",
+        )
+        .await
+        .expect_err("coordenador alheio nao deveria cancelar visita de outra unidade");
+    assert!(matches!(erro, ErroAgendamento::SemPermissao));
+
+    // Reagendar: sem permissao.
+    let erro = agendamento
+        .reagendar_visita(
+            coordenador_alheio.id,
+            visita.id,
+            ReagendamentoVisita {
+                data_visita: Utc::now().date_naive() + Duration::days(5),
+                horario: NaiveTime::from_hms_opt(15, 0, 0).expect("horario valido"),
+                id_tecnico: None,
+            },
+        )
+        .await
+        .expect_err("coordenador alheio nao deveria reagendar visita de outra unidade");
+    assert!(matches!(erro, ErroAgendamento::SemPermissao));
+
+    // Coordenador da propria unidade continua gerenciando normalmente.
+    let detalhe = agendamento
+        .detalhar_visita(cenario.coordenador, visita.id)
+        .await
+        .expect("coordenador da unidade deveria detalhar a visita");
+    assert_eq!(detalhe.visita.id, visita.id);
+}
