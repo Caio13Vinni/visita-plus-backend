@@ -281,6 +281,16 @@ impl CasoDeUsoSincronizacao {
             )
             .await?;
 
+        // Fecha a visita no central com o mesmo status do fluxo online
+        // (UC05), para que indicadores e historico nao fiquem divergentes.
+        let novo_status_visita = match dados.resultado {
+            ResultadoRegistro::Realizada => StatusVisita::Realizada,
+            ResultadoRegistro::NaoRealizada => StatusVisita::NaoRealizada,
+        };
+        self.repositorio_visita
+            .atualizar_status(visita.id, novo_status_visita)
+            .await?;
+
         Ok(())
     }
 

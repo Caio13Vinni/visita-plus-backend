@@ -16,11 +16,14 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::dominio::entidades::visita::{CadastroVisita, ReagendamentoVisita, Visita};
+use crate::dominio::entidades::visita::{
+    CadastroVisita, DetalheVisita, ReagendamentoVisita, Visita,
+};
 use crate::dominio::enums::{PrioridadeVisita, StatusVisita};
 use crate::dominio::erros::ErroAgendamento;
 use crate::infraestrutura::repositorios::visita_repositorio::FiltroVisita;
 use crate::interface::api::extratores::UsuarioAutenticado;
+use crate::interface::api::familias::RespostaFamilia;
 use crate::interface::api::modelos::ErroApi;
 use crate::interface::estado::EstadoAplicacao;
 
@@ -73,6 +76,10 @@ pub struct RequisicaoCancelamento {
 }
 
 /// Dados publicos de visita na resposta da API.
+///
+/// `familia` so e preenchido no detalhamento (RF12): a familia e exposta a
+/// partir de uma visita autorizada. Nos endpoints de lista, agendamento e
+/// cancelamento o campo permanece `None` para evitar consultas em cascata.
 #[derive(Debug, Serialize)]
 pub struct RespostaVisita {
     pub id: Uuid,
@@ -85,6 +92,7 @@ pub struct RespostaVisita {
     pub objetivo: String,
     pub status: StatusVisita,
     pub motivo_cancelamento: Option<String>,
+    pub familia: Option<RespostaFamilia>,
 }
 
 impl From<&Visita> for RespostaVisita {
@@ -100,7 +108,16 @@ impl From<&Visita> for RespostaVisita {
             objetivo: visita.objetivo.clone(),
             status: visita.status,
             motivo_cancelamento: visita.motivo_cancelamento.clone(),
+            familia: None,
         }
+    }
+}
+
+impl From<&DetalheVisita> for RespostaVisita {
+    fn from(detalhe: &DetalheVisita) -> Self {
+        let mut resposta = Self::from(&detalhe.visita);
+        resposta.familia = Some(RespostaFamilia::from(&detalhe.familia));
+        resposta
     }
 }
 

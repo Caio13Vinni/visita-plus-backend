@@ -105,10 +105,17 @@ impl EstadoAplicacao {
             repositorio_sessao,
             servico_auditoria.clone(),
         );
-        let profissionais =
-            CasoDeUsoProfissionais::novo(repositorio_usuario.clone(), repositorio_visita.clone());
-        let familias =
-            CasoDeUsoFamilias::novo(repositorio_familia.clone(), repositorio_usuario.clone());
+        let profissionais = CasoDeUsoProfissionais::novo(
+            repositorio_usuario.clone(),
+            repositorio_visita.clone(),
+            servico_auditoria.clone(),
+        );
+        let familias = CasoDeUsoFamilias::novo(
+            repositorio_familia.clone(),
+            repositorio_usuario.clone(),
+            repositorio_visita.clone(),
+            servico_auditoria.clone(),
+        );
         let agendamento = CasoDeUsoAgendamento::novo(
             repositorio_visita.clone(),
             repositorio_familia.clone(),

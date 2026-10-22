@@ -16,7 +16,9 @@ use uuid::Uuid;
 
 use crate::casos_de_uso::notificacoes::ServicoNotificacoes;
 use crate::dominio::entidades::usuario::Usuario;
-use crate::dominio::entidades::visita::{CadastroVisita, ReagendamentoVisita, Visita};
+use crate::dominio::entidades::visita::{
+    CadastroVisita, DetalheVisita, ReagendamentoVisita, Visita,
+};
 use crate::dominio::enums::{PerfilUsuario, StatusFamilia, StatusUsuario, StatusVisita};
 use crate::dominio::erros::ErroAgendamento;
 use crate::infraestrutura::auditoria::{ServicoAuditoria, acao};
@@ -166,7 +168,7 @@ impl CasoDeUsoAgendamento {
             return Err(ErroAgendamento::VisitaNaoPodeSerAlterada);
         }
 
-        if !self.pode_gerenciar(&logado, &visita) {
+        if !self.pode_gerenciar(&logado, &visita).await? {
             return Err(ErroAgendamento::SemPermissao);
         }
 
@@ -216,7 +218,7 @@ impl CasoDeUsoAgendamento {
             return Err(ErroAgendamento::VisitaNaoPodeSerAlterada);
         }
 
-        if !self.pode_gerenciar(&logado, &visita) {
+        if !self.pode_gerenciar(&logado, &visita).await? {
             return Err(ErroAgendamento::SemPermissao);
         }
 
@@ -316,7 +318,7 @@ impl CasoDeUsoAgendamento {
         &self,
         id_usuario: Uuid,
         id_visita: Uuid,
-    ) -> Result<Visita, ErroAgendamento> {
+    ) -> Result<DetalheVisita, ErroAgendamento> {
         let logado = self.usuario_ativo(id_usuario).await?;
 
         let visita = self
@@ -325,17 +327,24 @@ impl CasoDeUsoAgendamento {
             .await?
             .ok_or(ErroAgendamento::NaoEncontrado)?;
 
-        if !self.pode_gerenciar(&logado, &visita) {
+        if !self.pode_gerenciar(&logado, &visita).await? {
             return Err(ErroAgendamento::NaoEncontrado);
         }
 
-        Ok(visita)
+        let familia = self
+            .repositorio_familia
+            .buscar_por_id(visita.id_familia)
+            .await?
+            .ok_or(ErroAgendamento::NaoEncontrado)?;
+
+        Ok(DetalheVisita { visita, familia })
     }
 
     /// Lista as visitas conforme o perfil (RN05/RN06).
     ///
-    /// O tecnico enxerga somente a propria agenda; o coordenador filtra
-    /// livremente (tecnico, familia, unidade, status e periodo).
+    /// O tecnico enxerga somente a propria agenda; o coordenador, apenas as
+    /// visitas da propria unidade, filtrando livremente por tecnico, familia,
+    /// status e periodo dentro dessa visao.
     pub async fn listar_visitas(
         &self,
         id_usuario: Uuid,
@@ -343,8 +352,9 @@ impl CasoDeUsoAgendamento {
     ) -> Result<Vec<Visita>, ErroAgendamento> {
         let logado = self.usuario_ativo(id_usuario).await?;
 
-        if logado.perfil != PerfilUsuario::Coordenador {
-            filtro.id_tecnico = Some(logado.id);
+        match logado.perfil {
+            PerfilUsuario::Coordenador => filtro.id_unidade = Some(logado.id_unidade),
+            PerfilUsuario::Tecnico => filtro.id_tecnico = Some(logado.id),
         }
 
         Ok(self.repositorio_visita.listar(&filtro).await?)
@@ -395,11 +405,22 @@ impl CasoDeUsoAgendamento {
         }
     }
 
-    /// Coordenador gerencia qualquer agenda da unidade; tecnico so a propria.
-    fn pode_gerenciar(&self, logado: &Usuario, visita: &Visita) -> bool {
+    /// Coordenador gerencia as agendas da propria unidade; tecnico so a propria.
+    async fn pode_gerenciar(
+        &self,
+        logado: &Usuario,
+        visita: &Visita,
+    ) -> Result<bool, ErroAgendamento> {
         match logado.perfil {
-            PerfilUsuario::Coordenador => true,
-            PerfilUsuario::Tecnico => visita.id_tecnico == logado.id,
+            PerfilUsuario::Coordenador => {
+                let familia = self
+                    .repositorio_familia
+                    .buscar_por_id(visita.id_familia)
+                    .await?
+                    .ok_or(ErroAgendamento::NaoEncontrado)?;
+                Ok(familia.id_unidade == logado.id_unidade)
+            }
+            PerfilUsuario::Tecnico => Ok(visita.id_tecnico == logado.id),
         }
     }
 }

@@ -5,7 +5,9 @@
 //   - Somente o Coordenador gerencia profissionais (RN02);
 //   - Cadastro, edicao, ativacao e desativacao de contas na tabela `usuario`;
 //   - No primeiro acesso o novo usuario deve trocar a senha (RN05);
-//   - Nao e possivel desativar um tecnico com visitas futuras ativas.
+//   - Nao e possivel desativar um tecnico com visitas futuras ativas;
+//   - Coordenador opera apenas na propria unidade (RN05/RN06) e as
+//     manutencoes geram trilha de auditoria (RN22).
 // =============================================================================
 
 use std::sync::Arc;
@@ -14,6 +16,7 @@ use uuid::Uuid;
 use crate::dominio::entidades::usuario::Usuario;
 use crate::dominio::enums::{PerfilUsuario, StatusUsuario};
 use crate::dominio::erros::{ErroCadastro, erro_sql_e_violacao_de_unicidade};
+use crate::infraestrutura::auditoria::{ServicoAuditoria, acao};
 use crate::infraestrutura::repositorios::usuario_repositorio::{NovoUsuario, RepositorioUsuario};
 use crate::infraestrutura::repositorios::visita_repositorio::RepositorioVisita;
 use crate::infraestrutura::seguranca::senha;
@@ -40,6 +43,7 @@ pub struct EdicaoProfissional {
 pub struct CasoDeUsoProfissionais {
     repositorio_usuario: Arc<dyn RepositorioUsuario>,
     repositorio_visita: Arc<dyn RepositorioVisita>,
+    auditoria: ServicoAuditoria,
 }
 
 impl CasoDeUsoProfissionais {
@@ -47,14 +51,16 @@ impl CasoDeUsoProfissionais {
     pub fn novo(
         repositorio_usuario: Arc<dyn RepositorioUsuario>,
         repositorio_visita: Arc<dyn RepositorioVisita>,
+        auditoria: ServicoAuditoria,
     ) -> Self {
         Self {
             repositorio_usuario,
             repositorio_visita,
+            auditoria,
         }
     }
 
-    /// Lista os profissionais, opcionalmente por unidade.
+    /// Lista os profissionais da unidade do coordenador logado.
     pub async fn listar_profissionais(
         &self,
         id_usuario_logado: Uuid,
@@ -70,10 +76,15 @@ impl CasoDeUsoProfissionais {
             return Err(ErroCadastro::SemPermissao);
         }
 
-        Ok(self.repositorio_usuario.listar(id_unidade).await?)
+        let unidade = id_unidade.unwrap_or(logado.id_unidade);
+        if unidade != logado.id_unidade {
+            return Err(ErroCadastro::SemPermissao);
+        }
+
+        Ok(self.repositorio_usuario.listar(Some(unidade)).await?)
     }
 
-    /// Cadastra um novo profissional (somente Coordenador).
+    /// Cadastra um novo profissional (somente Coordenador, na propria unidade).
     pub async fn cadastrar_profissional(
         &self,
         id_usuario_logado: Uuid,
@@ -86,6 +97,10 @@ impl CasoDeUsoProfissionais {
             .ok_or(ErroCadastro::NaoEncontrado)?;
 
         if logado.perfil != PerfilUsuario::Coordenador {
+            return Err(ErroCadastro::SemPermissao);
+        }
+
+        if cadastro.id_unidade != logado.id_unidade {
             return Err(ErroCadastro::SemPermissao);
         }
 
@@ -107,7 +122,25 @@ impl CasoDeUsoProfissionais {
         };
 
         match self.repositorio_usuario.criar(&novo).await {
-            Ok(usuario) => Ok(usuario),
+            Ok(usuario) => {
+                let _ = self
+                    .auditoria
+                    .registrar(
+                        Some(logado.id),
+                        "usuario",
+                        usuario.id,
+                        acao::PROFISSIONAL_CRIADO,
+                        Some(&format!(
+                            "Profissional {} cadastrado com perfil {}",
+                            usuario.nome,
+                            usuario.perfil.como_str()
+                        )),
+                        None,
+                        None,
+                    )
+                    .await;
+                Ok(usuario)
+            }
             Err(erro) if erro_sql_e_violacao_de_unicidade(&erro) => {
                 Err(ErroCadastro::EmailJaExistente)
             }
@@ -138,6 +171,10 @@ impl CasoDeUsoProfissionais {
             .await?
             .ok_or(ErroCadastro::NaoEncontrado)?;
 
+        if existente.id_unidade != logado.id_unidade {
+            return Err(ErroCadastro::SemPermissao);
+        }
+
         if edicao.nome.trim().is_empty() {
             return Err(ErroCadastro::DadosInvalidos(
                 "nome nao pode ser vazio".into(),
@@ -147,6 +184,22 @@ impl CasoDeUsoProfissionais {
         self.repositorio_usuario
             .atualizar(id_profissional, &edicao.nome, edicao.perfil)
             .await?;
+
+        let _ = self
+            .auditoria
+            .registrar(
+                Some(logado.id),
+                "usuario",
+                id_profissional,
+                acao::PROFISSIONAL_ALTERADO,
+                Some(&format!(
+                    "Profissional {} editado (nome e/ou perfil)",
+                    edicao.nome
+                )),
+                None,
+                None,
+            )
+            .await;
 
         // Devolve a entidade atualizada
         let mut atualizado = existente;
@@ -178,6 +231,10 @@ impl CasoDeUsoProfissionais {
             .await?
             .ok_or(ErroCadastro::NaoEncontrado)?;
 
+        if profissional.id_unidade != logado.id_unidade {
+            return Err(ErroCadastro::SemPermissao);
+        }
+
         // Regra: nao desativar tecnico com visitas futuras ativas
         if novo_status == StatusUsuario::Inativo
             && profissional.perfil == PerfilUsuario::Tecnico
@@ -192,6 +249,23 @@ impl CasoDeUsoProfissionais {
         self.repositorio_usuario
             .alterar_status(id_profissional, novo_status)
             .await?;
+
+        let _ = self
+            .auditoria
+            .registrar(
+                Some(logado.id),
+                "usuario",
+                id_profissional,
+                acao::PROFISSIONAL_ALTERADO,
+                Some(&format!(
+                    "Status do profissional {} alterado para {}",
+                    profissional.nome,
+                    novo_status.como_str()
+                )),
+                None,
+                None,
+            )
+            .await;
 
         let mut atualizado = profissional;
         atualizado.status = novo_status;
