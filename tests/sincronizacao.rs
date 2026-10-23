@@ -7,7 +7,8 @@
 //
 // Cobre o envio de pendencias acumuladas no SQLite local (registros de
 // visita e encaminhamentos feitos offline) e o recebimento da agenda do
-// perfil no espelho local, com as regras de posse (RN05/RN06).
+// perfil no espelho local, com as regras de posse (RN05/RN06). Tambem
+// cobre os endpoints HTTP de push e pull usados pelo app mobile.
 // =============================================================================
 
 mod comum;
@@ -17,9 +18,9 @@ use std::sync::Arc;
 use chrono::{Duration, NaiveTime, Utc};
 use comum::*;
 use visita_plus::casos_de_uso::agendamento::CasoDeUsoAgendamento;
-use visita_plus::casos_de_uso::sincronizacao::CasoDeUsoSincronizacao;
+use visita_plus::casos_de_uso::sincronizacao::{CasoDeUsoSincronizacao, PendenciaRecebida};
 use visita_plus::dominio::entidades::visita::CadastroVisita;
-use visita_plus::dominio::enums::{PerfilUsuario, PrioridadeVisita, StatusUsuario};
+use visita_plus::dominio::enums::{PerfilUsuario, PrioridadeVisita, StatusUsuario, StatusVisita};
 use visita_plus::dominio::erros::ErroSincronizacao;
 use visita_plus::infraestrutura::auditoria::{ServicoAuditoria, acao};
 use visita_plus::infraestrutura::repositorios::encaminhamento_repositorio::RepositorioEncaminhamentoPostgres;
@@ -660,4 +661,200 @@ async fn dupla_na_unidade(
     )
     .await;
     (coordenador, tecnico)
+}
+
+// =============================================================================
+// Sincronizacao via HTTP (app mobile) — push e pull
+// =============================================================================
+
+/// Converte um payload de teste (string JSON) em pendencia do push HTTP.
+fn pendencia(tipo: &str, payload: &str) -> PendenciaRecebida {
+    PendenciaRecebida {
+        tipo: tipo.into(),
+        payload: serde_json::from_str(payload).expect("payload de teste valido"),
+    }
+}
+
+#[tokio::test]
+async fn push_http_aplica_registro_e_encaminhamento_do_tecnico() {
+    let pool = preparar_banco().await;
+    let (coordenador, tecnico) = dupla(&pool).await;
+    let (suites, _) = montar(&pool, &caminho_sqlite());
+    let (_, visita) = agenda_visita(&pool, &suites.agendamento, &coordenador, &tecnico).await;
+
+    let pendencias = vec![
+        pendencia("registro_visita", &payload_registro_realizada(visita)),
+        pendencia(
+            "encaminhamento",
+            &payload_encaminhamento(visita, "CREAS Centro", "Familia em situacao de risco"),
+        ),
+    ];
+
+    let resumo = suites
+        .sincronizacao
+        .receber_pendencias(tecnico.id, &pendencias)
+        .await
+        .expect("push deveria ser processado");
+
+    assert_eq!(resumo.enviados, 2);
+    assert_eq!(resumo.erros, 0);
+    assert!(resumo.itens.iter().all(|item| item.sucesso));
+
+    let detalhe = suites
+        .agendamento
+        .detalhar_visita(tecnico.id, visita)
+        .await
+        .expect("visita");
+    assert_eq!(
+        detalhe.visita.status,
+        StatusVisita::Realizada,
+        "push de registro realizado deve fechar a visita no central"
+    );
+
+    let encaminhamentos: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM encaminhamento WHERE id_visita = $1")
+            .bind(visita)
+            .fetch_one(&pool)
+            .await
+            .expect("contagem de encaminhamentos");
+    assert_eq!(encaminhamentos, 1, "encaminhamento do push deve existir");
+}
+
+#[tokio::test]
+async fn push_http_item_invalido_nao_aborta_o_restante() {
+    let pool = preparar_banco().await;
+    let (coordenador, tecnico) = dupla(&pool).await;
+    let outro_tecnico = criar_usuario_na_unidade(
+        &pool,
+        coordenador.id_unidade,
+        PerfilUsuario::Tecnico,
+        StatusUsuario::Ativo,
+        false,
+    )
+    .await;
+    let (suites, _) = montar(&pool, &caminho_sqlite());
+    let (_, minha_visita) = agenda_visita(&pool, &suites.agendamento, &coordenador, &tecnico).await;
+    let (_, visita_alheia) =
+        agenda_visita_em(&pool, &suites.agendamento, &coordenador, &outro_tecnico, 3).await;
+
+    let pendencias = vec![
+        pendencia(
+            "registro_visita",
+            &payload_registro_realizada(visita_alheia),
+        ),
+        pendencia("registro_visita", &payload_registro_realizada(minha_visita)),
+    ];
+
+    let resumo = suites
+        .sincronizacao
+        .receber_pendencias(tecnico.id, &pendencias)
+        .await
+        .expect("push deveria ser processado");
+
+    assert_eq!(
+        resumo.enviados, 1,
+        "apenas a pendencia da propria agenda e aplicada"
+    );
+    assert_eq!(resumo.erros, 1, "pendencia alheia vira erro individual");
+    assert!(resumo.itens.iter().any(|item| !item.sucesso));
+    assert!(resumo.itens.iter().any(|item| item.sucesso));
+
+    let detalhe = suites
+        .agendamento
+        .detalhar_visita(tecnico.id, minha_visita)
+        .await
+        .expect("visita");
+    assert_eq!(detalhe.visita.status, StatusVisita::Realizada);
+}
+
+#[tokio::test]
+async fn push_http_e_idempotente_no_reenvio() {
+    let pool = preparar_banco().await;
+    let (coordenador, tecnico) = dupla(&pool).await;
+    let (suites, _) = montar(&pool, &caminho_sqlite());
+    let (_, visita) = agenda_visita(&pool, &suites.agendamento, &coordenador, &tecnico).await;
+
+    let primeira = vec![pendencia(
+        "registro_visita",
+        &payload_registro_realizada(visita),
+    )];
+    suites
+        .sincronizacao
+        .receber_pendencias(tecnico.id, &primeira)
+        .await
+        .expect("primeiro push");
+
+    let reenvio = vec![pendencia(
+        "registro_visita",
+        &payload_registro_realizada(visita),
+    )];
+    let resumo = suites
+        .sincronizacao
+        .receber_pendencias(tecnico.id, &reenvio)
+        .await
+        .expect("reenvio do push");
+
+    assert_eq!(
+        resumo.enviados, 1,
+        "reenvio e aceito sem duplicar o registro (idempotente)"
+    );
+
+    let registros: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM registro_visita WHERE id_visita = $1")
+            .bind(visita)
+            .fetch_one(&pool)
+            .await
+            .expect("contagem de registros");
+    assert_eq!(
+        registros, 1,
+        "reenvio nao pode duplicar o registro no central"
+    );
+}
+
+#[tokio::test]
+async fn pull_http_retorna_agenda_e_familias_do_perfil() {
+    let pool = preparar_banco().await;
+    let (coordenador, tecnico) = dupla(&pool).await;
+    let outro_tecnico = criar_usuario_na_unidade(
+        &pool,
+        coordenador.id_unidade,
+        PerfilUsuario::Tecnico,
+        StatusUsuario::Ativo,
+        false,
+    )
+    .await;
+    let (suites, _) = montar(&pool, &caminho_sqlite());
+
+    let (familia1, visita1) =
+        agenda_visita(&pool, &suites.agendamento, &coordenador, &tecnico).await;
+    let (familia2, visita2) =
+        agenda_visita_em(&pool, &suites.agendamento, &coordenador, &tecnico, 3).await;
+    let (familia3, _) =
+        agenda_visita_em(&pool, &suites.agendamento, &coordenador, &outro_tecnico, 4).await;
+
+    // Tecnico: so a propria agenda, com as familias correspondentes.
+    let agenda = suites
+        .sincronizacao
+        .baixar_agenda(tecnico.id)
+        .await
+        .expect("pull do tecnico");
+    assert_eq!(agenda.visitas.len(), 2);
+    assert_eq!(agenda.familias.len(), 2);
+    assert!(agenda.visitas.iter().any(|v| v.id == visita1));
+    assert!(agenda.visitas.iter().any(|v| v.id == visita2));
+    assert!(agenda.familias.iter().any(|f| f.id == familia1));
+    assert!(agenda.familias.iter().any(|f| f.id == familia2));
+    assert!(
+        !agenda.familias.iter().any(|f| f.id == familia3),
+        "tecnico nao recebe familia da agenda de outro tecnico (RN05/RN06)"
+    );
+
+    // Coordenador: agenda de toda a unidade.
+    let agenda = suites
+        .sincronizacao
+        .baixar_agenda(coordenador.id)
+        .await
+        .expect("pull do coordenador");
+    assert_eq!(agenda.visitas.len(), 3);
+    assert_eq!(agenda.familias.len(), 3);
 }

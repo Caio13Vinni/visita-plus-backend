@@ -8,6 +8,8 @@
 //     validacoes de posse: a visita precisa existir e pertencer ao
 //     tecnico autenticado; registros ja existentes sao tratados como
 //     idempotentes (reenvio nao duplica);
+//   - O app mobile tambem sincroniza via HTTP (POST /push com as
+//     pendencias e GET /pull para baixar a agenda), com as mesmas regras;
 //   - Recebimento (pull): a agenda do perfil e refletida no banco local —
 //     tecnico recebe suas visitas; coordenador, as da propria unidade
 //     (RN05/RN06) — com as familias correspondentes;
@@ -16,13 +18,16 @@
 //   - Auditoria da operacao (RN22).
 // =============================================================================
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 use uuid::Uuid;
 
 use serde::Deserialize;
 
 use crate::dominio::entidades::encaminhamento::Encaminhamento;
+use crate::dominio::entidades::familia::Familia;
 use crate::dominio::entidades::usuario::Usuario;
+use crate::dominio::entidades::visita::Visita;
 use crate::dominio::enums::{PerfilUsuario, ResultadoRegistro, StatusEncaminhamento, StatusVisita};
 use crate::dominio::erros::ErroSincronizacao;
 use crate::infraestrutura::auditoria::{ServicoAuditoria, acao};
@@ -66,6 +71,36 @@ pub struct ResumoSincronizacao {
     pub recebidos: u64,
     /// Pendencias marcadas com erro (visita invalida, payload malformado).
     pub erros: u64,
+}
+
+/// Pendencia enviada pelo app mobile no push HTTP.
+#[derive(Debug, Deserialize)]
+pub struct PendenciaRecebida {
+    pub tipo: String,
+    pub payload: serde_json::Value,
+}
+
+/// Resultado individual de uma pendencia do push HTTP.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResultadoItemPush {
+    pub tipo: String,
+    pub sucesso: bool,
+    pub erro: Option<String>,
+}
+
+/// Resumo do push de pendencias recebido via HTTP.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ResumoPush {
+    pub enviados: u64,
+    pub erros: u64,
+    pub itens: Vec<ResultadoItemPush>,
+}
+
+/// Agenda do perfil devolvida no pull HTTP.
+#[derive(Debug, Clone)]
+pub struct AgendaSincronizacao {
+    pub visitas: Vec<Visita>,
+    pub familias: Vec<Familia>,
 }
 
 /// Orquestrador da sincronizacao offline/online.
@@ -115,10 +150,14 @@ impl CasoDeUsoSincronizacao {
         let mut enviados = 0u64;
         let mut erros = 0u64;
         for pendencia in self.banco_local.listar_pendentes().await? {
-            match self
-                .enviar_pendencia(&logado, &pendencia.tipo, &pendencia.payload)
-                .await
-            {
+            let resultado = match serde_json::from_str::<serde_json::Value>(&pendencia.payload) {
+                Ok(payload) => {
+                    self.enviar_pendencia(&logado, &pendencia.tipo, &payload)
+                        .await
+                }
+                Err(erro) => Err(ErroSincronizacao::PendenciaInvalida(erro.to_string())),
+            };
+            match resultado {
                 Ok(()) => {
                     self.banco_local.marcar_sincronizado(pendencia.id).await?;
                     enviados += 1;
@@ -135,36 +174,22 @@ impl CasoDeUsoSincronizacao {
         }
 
         // 2. Recebimento da agenda conforme o perfil (RN05/RN06)
-        let filtro = match logado.perfil {
-            PerfilUsuario::Tecnico => FiltroVisita {
-                id_tecnico: Some(logado.id),
-                ..Default::default()
-            },
-            PerfilUsuario::Coordenador => FiltroVisita {
-                id_unidade: Some(logado.id_unidade),
-                ..Default::default()
-            },
-        };
-        let visitas = self.repositorio_visita.listar(&filtro).await?;
+        let (visitas, familias) = self.agenda_do_perfil(&logado).await?;
         let recebidos = visitas.len() as u64;
 
-        let mut familias_locais = Vec::new();
-        let mut visitas_locais = Vec::new();
-        for visita in &visitas {
-            if let Some(familia) = self
-                .repositorio_familia
-                .buscar_por_id(visita.id_familia)
-                .await?
-            {
-                familias_locais.push(FamiliaLocal {
-                    id: familia.id,
-                    codigo: familia.codigo,
-                    nome_referencia: familia.nome_referencia,
-                    endereco: familia.endereco,
-                    status: familia.status,
-                });
-            }
-            visitas_locais.push(VisitaLocal {
+        let familias_locais = familias
+            .into_iter()
+            .map(|familia| FamiliaLocal {
+                id: familia.id,
+                codigo: familia.codigo,
+                nome_referencia: familia.nome_referencia,
+                endereco: familia.endereco,
+                status: familia.status,
+            })
+            .collect::<Vec<_>>();
+        let visitas_locais = visitas
+            .iter()
+            .map(|visita| VisitaLocal {
                 id: visita.id,
                 id_familia: visita.id_familia,
                 data_visita: visita.data_visita,
@@ -172,8 +197,8 @@ impl CasoDeUsoSincronizacao {
                 prioridade: visita.prioridade,
                 objetivo: visita.objetivo.clone(),
                 status: visita.status,
-            });
-        }
+            })
+            .collect::<Vec<_>>();
 
         self.banco_local
             .substituir_agenda(&familias_locais, &visitas_locais)
@@ -210,16 +235,16 @@ impl CasoDeUsoSincronizacao {
         &self,
         logado: &Usuario,
         tipo: &str,
-        payload: &str,
+        payload: &serde_json::Value,
     ) -> Result<(), ErroSincronizacao> {
         match tipo {
             PENDENCIA_REGISTRO_VISITA => {
-                let dados: PendenciaRegistroVisita = serde_json::from_str(payload)
+                let dados: PendenciaRegistroVisita = serde_json::from_value(payload.clone())
                     .map_err(|erro| ErroSincronizacao::PendenciaInvalida(erro.to_string()))?;
                 self.enviar_registro_visita(logado, &dados).await
             }
             PENDENCIA_ENCAMINHAMENTO => {
-                let dados: PendenciaEncaminhamento = serde_json::from_str(payload)
+                let dados: PendenciaEncaminhamento = serde_json::from_value(payload.clone())
                     .map_err(|erro| ErroSincronizacao::PendenciaInvalida(erro.to_string()))?;
                 self.enviar_encaminhamento(logado, &dados).await
             }
@@ -227,6 +252,124 @@ impl CasoDeUsoSincronizacao {
                 "tipo de pendencia desconhecido: {outro}"
             ))),
         }
+    }
+
+    /// Aplica pendencias enviadas pelo app mobile (push HTTP): mesmas
+    /// validacoes da fila local; itens invalidos viram erro individual sem
+    /// abortar o lote; operacao auditada (RN22).
+    pub async fn receber_pendencias(
+        &self,
+        id_usuario: Uuid,
+        pendencias: &[PendenciaRecebida],
+    ) -> Result<ResumoPush, ErroSincronizacao> {
+        let logado = self.usuario_ativo(id_usuario).await?;
+
+        let mut resumo = ResumoPush::default();
+        for pendencia in pendencias {
+            let resultado = self
+                .enviar_pendencia(&logado, &pendencia.tipo, &pendencia.payload)
+                .await;
+            match resultado {
+                Ok(()) => {
+                    resumo.enviados += 1;
+                    resumo.itens.push(ResultadoItemPush {
+                        tipo: pendencia.tipo.clone(),
+                        sucesso: true,
+                        erro: None,
+                    });
+                }
+                Err(erro @ ErroSincronizacao::VisitaInvalida)
+                | Err(erro @ ErroSincronizacao::PendenciaInvalida(_)) => {
+                    resumo.erros += 1;
+                    resumo.itens.push(ResultadoItemPush {
+                        tipo: pendencia.tipo.clone(),
+                        sucesso: false,
+                        erro: Some(erro.to_string()),
+                    });
+                }
+                Err(erro) => return Err(erro),
+            }
+        }
+
+        let _ = self
+            .auditoria
+            .registrar(
+                Some(logado.id),
+                "sincronizacao",
+                logado.id,
+                acao::SINCRONIZACAO_REALIZADA,
+                Some(&format!(
+                    "push recebido: {} enviados, {} erros",
+                    resumo.enviados, resumo.erros
+                )),
+                None,
+                None,
+            )
+            .await;
+
+        Ok(resumo)
+    }
+
+    /// Devolve a agenda do perfil para o app mobile baixar (pull HTTP):
+    /// o tecnico recebe as proprias visitas; o coordenador, as da propria
+    /// unidade (RN05/RN06), com as familias correspondentes. Operacao
+    /// auditada (RN22).
+    pub async fn baixar_agenda(
+        &self,
+        id_usuario: Uuid,
+    ) -> Result<AgendaSincronizacao, ErroSincronizacao> {
+        let logado = self.usuario_ativo(id_usuario).await?;
+        let (visitas, familias) = self.agenda_do_perfil(&logado).await?;
+
+        let _ = self
+            .auditoria
+            .registrar(
+                Some(logado.id),
+                "sincronizacao",
+                logado.id,
+                acao::SINCRONIZACAO_REALIZADA,
+                Some(&format!(
+                    "pull executado: {} visitas recebidas",
+                    visitas.len()
+                )),
+                None,
+                None,
+            )
+            .await;
+
+        Ok(AgendaSincronizacao { visitas, familias })
+    }
+
+    /// Agenda do perfil conforme RN05/RN06, com as familias correspondentes
+    /// (sem duplicidade).
+    async fn agenda_do_perfil(
+        &self,
+        logado: &Usuario,
+    ) -> Result<(Vec<Visita>, Vec<Familia>), ErroSincronizacao> {
+        let filtro = match logado.perfil {
+            PerfilUsuario::Tecnico => FiltroVisita {
+                id_tecnico: Some(logado.id),
+                ..Default::default()
+            },
+            PerfilUsuario::Coordenador => FiltroVisita {
+                id_unidade: Some(logado.id_unidade),
+                ..Default::default()
+            },
+        };
+        let visitas = self.repositorio_visita.listar(&filtro).await?;
+
+        let mut familias = Vec::new();
+        for id_familia in visitas
+            .iter()
+            .map(|visita| visita.id_familia)
+            .collect::<BTreeSet<_>>()
+        {
+            if let Some(familia) = self.repositorio_familia.buscar_por_id(id_familia).await? {
+                familias.push(familia);
+            }
+        }
+
+        Ok((visitas, familias))
     }
 
     /// Envia um registro de visita feito offline: exige visita da propria

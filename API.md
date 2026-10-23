@@ -209,20 +209,25 @@ Prefixo: `/api/v1/sincronizacao`
 
 | Método | Path | Auth | Body | Response |
 |---|---|---|---|---|
-| POST | `/sincronizacao` | sim | **nenhum** | 200 `{enviados, recebidos, erros}` |
+| POST | `/sincronizacao` | sim | nenhum | 200 `{enviados, recebidos, erros}` — reconcilia a fila do SQLite server-side (protótipo) |
+| POST | `/sincronizacao/push` | sim | `{pendencias: [{tipo, payload}]}` | 200 `{enviados, erros, itens: [{tipo, sucesso, erro?}]}` |
+| GET | `/sincronizacao/pull` | sim | — | 200 `{visitas: RespostaVisita[], familias: RespostaFamilia[]}` |
 
-> **⚠️ Aviso arquitetural para o time mobile:** neste protótipo a fila de pendências fica num **SQLite server-side** (`SQLITE_ENDERECO`) que simula o banco local do app — o endpoint **não recebe payload** e apenas dispara a reconciliação dessa fila. **Não existe ainda uma API HTTP para o app Flutter enviar pendências arbitrárias nem para baixar a agenda em JSON.** Para integração mobile real serão necessários endpoints de push/pull — hoje o contrato interno aplicado pelo servidor é:
+**Fluxo do app Flutter:** trabalhe offline no SQLite local → ao voltar à rede, `POST /push` com as pendências acumuladas → `GET /pull` para atualizar a agenda local. As duas operações são independentes: dá pra chamar só push, só pull, ou os dois.
 
-Tipos de pendência e payloads processados no push (server-side):
+**Push** — tipos de pendência e payloads:
 
 - `"registro_visita"` → `{id_visita, resultado, descricao?, desfecho?, necessita_retorno, motivo_nao_realizada?}`
 - `"encaminhamento"` → `{id_visita, destino, motivo}`
 
-Regras aplicadas na reconciliação:
+Regras aplicadas no push:
 
-1. A visita precisa existir e pertencer ao técnico autenticado, senão a pendência é marcada com erro e **não aborta as demais** (`erros += 1`); sucesso marca como sincronizado (`enviados += 1`).
+1. A visita precisa existir e pertencer ao técnico autenticado, senão o item retorna `sucesso: false` com `erro` — **itens inválidos não abortam o lote** (`enviados`/`erros` refletem o resultado por item em `itens`).
 2. Registro de visita é **idempotente** — reenvio não duplica (cardinalidade 1:0..1 do MER).
-3. Pull espelha a agenda no banco local: técnico recebe as **suas** visitas, coordenador as da **sua unidade** (RN05/RN06), com as famílias correspondentes (`recebidos` = nº de visitas espelhadas; substituição total, não incremental).
+3. Se a visita ainda está `"Agendada"`, o push abre `"Em andamento"` e depois fecha com o resultado (`"Realizada"`/`"Não realizada"`), como no fluxo online.
+4. O push é auditado (`SINCRONIZACAO_REALIZADA`, RN22).
+
+**Pull** — devolve a agenda do perfil (RN05/RN06): técnico recebe as **suas** visitas; coordenador, as da **sua unidade**; com as famílias correspondentes (sem duplicidade). `RespostaVisita.familia` vem `null` no pull — os dados da família vêm no array `familias`.
 
 ## 16. Cheat sheet
 
