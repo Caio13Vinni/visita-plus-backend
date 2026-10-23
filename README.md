@@ -2,6 +2,8 @@
 
 Sistema de gestão de visitas domiciliares para unidades CRAS/CREAS, desenvolvido em **Rust** com **Clean Architecture**. Projeto acadêmico baseado no documento `Documentacao_Academica_Visitas_Domiciliares.docx` e no Contexto do Projeto (`PROJECT_CONTEXT.md`).
 
+> **Integrando um front-end?** O contrato completo da API (endpoints, payloads, enums e códigos de erro) está em [`API.md`](API.md).
+
 ## Arquitetura
 
 ```
